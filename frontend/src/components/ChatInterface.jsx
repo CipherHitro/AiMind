@@ -73,12 +73,32 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen }) {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex overflow-hidden relative">
+      {/* Backdrop blur overlay for mobile - only blurs chat area, not navbar */}
+      {sidebarOpen && (
+        <div 
+          className="absolute inset-0 bg-black/10 backdrop-blur-sm z-10 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Left Sidebar - Chat History */}
       <div
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } transition-all duration-300 ease-in-out flex flex-col bg-white/50 backdrop-blur-md border-r border-white/30 overflow-hidden`}
+        className={`
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0
+          ${sidebarOpen ? 'md:w-64' : 'md:w-0'}
+          fixed md:relative
+          w-64
+          h-full
+          z-20
+          transition-all duration-300 ease-in-out 
+          flex flex-col 
+          bg-white/50 backdrop-blur-md 
+          border-r border-white/30 
+          overflow-hidden
+          md:border-r
+        `}
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-white/30">
@@ -86,9 +106,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen }) {
             <h2 className="text-sm font-semibold text-gray-700">Chat History</h2>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-1.5 hover:bg-white/40 rounded-lg transition-colors duration-200"
+              className="p-1.5 hover:bg-red-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95 group"
             >
-              <X size={18} />
+              <X size={18} className="text-gray-600 group-hover:text-red-600 transition-colors duration-300" />
             </button>
           </div>
           <button
@@ -189,13 +209,13 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen }) {
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
+                  className={`max-w-[85%] sm:max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
                     message.sender === 'user'
                       ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-br-none shadow-lg'
                       : 'bg-white/60 text-gray-800 border border-white/50 rounded-bl-none shadow-md'
-                  } backdrop-blur-md`}
+                  } backdrop-blur-md break-words`}
                 >
-                  <p className="text-sm leading-relaxed">{message.text}</p>
+                  <p className="text-sm leading-relaxed break-words">{message.text}</p>
                 </div>
               </div>
             ))}

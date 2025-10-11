@@ -19,9 +19,9 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
                 {!sidebarOpen && (
                   <button
                     onClick={() => setSidebarOpen(true)}
-                    className="p-2 hover:bg-white/40 rounded-lg transition-colors duration-200"
+                    className="p-2 hover:bg-purple-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95"
                   >
-                    <Menu size={24} className="text-gray-700" />
+                    <Menu size={24} className="text-gray-700 hover:text-purple-600 transition-colors duration-300" />
                   </button>
                 )}
               </div>
