@@ -36,9 +36,9 @@ export default function Login() {
     e.preventDefault();
     const newErrors = {};
 
-    // Validate username
+    // Validate username or email
     if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+      newErrors.username = 'Username or email is required';
     }
 
     // Validate password
@@ -110,10 +110,10 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Username Field */}
+            {/* Username or Email Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                Username or Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -127,7 +127,7 @@ export default function Login() {
                   className={`w-full pl-10 pr-4 py-3 rounded-lg bg-white/60 border ${
                     errors.username ? 'border-red-300' : 'border-white/50'
                   } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
-                  placeholder="Enter your username"
+                  placeholder="Enter username or email"
                 />
               </div>
               {errors.username && (

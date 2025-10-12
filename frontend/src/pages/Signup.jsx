@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, User, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, User, Lock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -21,6 +21,15 @@ export default function Signup() {
     hasSymbol: false
   });
 
+  // Username availability state
+  const [usernameStatus, setUsernameStatus] = useState({
+    checking: false,
+    available: null,
+    message: ''
+  });
+
+  const usernameCheckTimeout = useRef(null);
+
   // Password validation function
   const validatePassword = (password) => {
     const validation = {
@@ -32,6 +41,66 @@ export default function Signup() {
     setPasswordValidation(validation);
     return Object.values(validation).every(Boolean);
   };
+
+  // Check username availability with debounce
+  const checkUsernameAvailability = async (username) => {
+    if (!username || username.length < 3) {
+      setUsernameStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    setUsernameStatus({ checking: true, available: null, message: '' });
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/user/check-username?username=${encodeURIComponent(username)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      setUsernameStatus({
+        checking: false,
+        available: result.available,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('Error checking username:', error);
+      setUsernameStatus({
+        checking: false,
+        available: null,
+        message: 'Error checking username',
+      });
+    }
+  };
+
+  // Debounce username check
+  useEffect(() => {
+    if (formData.username) {
+      // Clear previous timeout
+      if (usernameCheckTimeout.current) {
+        clearTimeout(usernameCheckTimeout.current);
+      }
+
+      // Set new timeout
+      usernameCheckTimeout.current = setTimeout(() => {
+        checkUsernameAvailability(formData.username);
+      }, 500); // 500ms debounce
+    } else {
+      setUsernameStatus({ checking: false, available: null, message: '' });
+    }
+
+    // Cleanup
+    return () => {
+      if (usernameCheckTimeout.current) {
+        clearTimeout(usernameCheckTimeout.current);
+      }
+    };
+  }, [formData.username]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -63,6 +132,8 @@ export default function Signup() {
       newErrors.username = 'Username is required';
     } else if (formData.username.length < 3) {
       newErrors.username = 'Username must be at least 3 characters';
+    } else if (!usernameStatus.available) {
+      newErrors.username = 'Please choose an available username';
     }
 
     // Validate email
@@ -103,9 +174,13 @@ export default function Signup() {
     const result = await response.json();
     console.log("json :", result)
     
-    console.log('Form submitted:', formData);
-    // After successful signup, navigate to chat
-    // navigate('/chat');
+    if (response.ok) {
+      console.log('Form submitted:', formData);
+      // After successful signup, navigate to login
+      navigate('/login');
+    } else {
+      alert(result.message || 'Signup failed');
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -141,14 +216,39 @@ export default function Signup() {
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg bg-white/60 border ${
-                    errors.username ? 'border-red-300' : 'border-white/50'
+                  className={`w-full pl-10 pr-10 py-3 rounded-lg bg-white/60 border ${
+                    errors.username 
+                      ? 'border-red-300' 
+                      : usernameStatus.available === true 
+                      ? 'border-green-300' 
+                      : usernameStatus.available === false 
+                      ? 'border-red-300' 
+                      : 'border-white/50'
                   } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
                   placeholder="Enter your username"
                 />
+                {/* Status Icon */}
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  {usernameStatus.checking && (
+                    <Loader2 className="h-5 w-5 text-purple-600 animate-spin" />
+                  )}
+                  {!usernameStatus.checking && usernameStatus.available === true && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
+                  {!usernameStatus.checking && usernameStatus.available === false && (
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  )}
+                </div>
               </div>
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+              )}
+              {!errors.username && usernameStatus.message && (
+                <p className={`mt-1 text-sm ${
+                  usernameStatus.available ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {usernameStatus.message}
+                </p>
               )}
             </div>
 
