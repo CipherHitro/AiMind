@@ -13,8 +13,8 @@ const { authenticateUser } = require('./middlewares/auth');
 require("dotenv").config();
 
 const corsOptions = {
-  origin: 'http://localhost:5173', //  Must be a specific origin, not '*'
-  credentials: true,              // Allow cookies
+  origin: process.env.CLIENT_API, 
+  credentials: true,              
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
