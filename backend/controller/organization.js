@@ -397,6 +397,51 @@ async function switchOrganization(req, res) {
   }
 }
 
+// Rename organization (admin only)
+async function renameOrganization(req, res) {
+  try {
+    const { orgId } = req.params;
+    const { name } = req.body;
+    const user = req.user;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Organization name is required' });
+    }
+
+    // Check if user is a member and has admin role
+    const userOrg = user.organizations.find(org => org.orgId.toString() === orgId);
+
+    if (!userOrg) {
+      return res.status(403).json({ message: 'You are not a member of this organization' });
+    }
+
+    if (userOrg.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can rename the organization' });
+    }
+
+    // Find and update organization
+    const organization = await Organization.findById(orgId);
+
+    if (!organization) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    organization.name = name.trim();
+    await organization.save();
+
+    return res.status(200).json({ 
+      message: 'Organization renamed successfully',
+      organization: {
+        _id: organization._id,
+        name: organization.name
+      }
+    });
+  } catch (error) {
+    console.error('Error renaming organization:', error);
+    return res.status(500).json({ message: 'Error renaming organization' });
+  }
+}
+
 module.exports = {
   getUserOrganizations,
   getOrganizationDetails,
@@ -404,5 +449,6 @@ module.exports = {
   inviteMember,
   updateMemberRole,
   removeMember,
-  switchOrganization
+  switchOrganization,
+  renameOrganization
 };

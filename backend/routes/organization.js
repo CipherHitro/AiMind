@@ -7,7 +7,8 @@ const {
   inviteMember,
   updateMemberRole,
   removeMember,
-  switchOrganization
+  switchOrganization,
+  renameOrganization
 } = require('../controller/organization');
 const { authenticateUser } = require('../middlewares/auth');
 
@@ -25,6 +26,9 @@ router.get('/:orgId', getOrganizationDetails);
 
 // Switch active organization
 router.post('/:orgId/switch', switchOrganization);
+
+// Rename organization (admin only)
+router.patch('/:orgId/rename', renameOrganization);
 
 // Invite member to organization
 router.post('/:orgId/invite', inviteMember);

@@ -2,6 +2,7 @@ const User = require("../models/user");
 const Organization = require("../models/organization");
 const bcrypt = require("bcryptjs");
 const { setUser } = require("../services/auth");
+const { sendWelcomeNotification } = require('../services/socket');
 require('dotenv').config();
 
 async function handleCheckUsername(req, res) {
@@ -93,6 +94,9 @@ async function handleSignup(req, res) {
       ];
       user.activeOrganization = defaultOrg._id;
       await user.save();
+
+      // Send welcome notification to new user
+      await sendWelcomeNotification(user._id);
 
       console.log('User and default organization created successfully');
       return res.status(201).json({ message: "User created", user });
@@ -222,6 +226,9 @@ async function handleOAuthLogin(req, res) {
       ];
       user.activeOrganization = defaultOrg._id;
       await user.save();
+
+      // Send welcome notification to new OAuth user
+      await sendWelcomeNotification(user._id);
 
       console.log('Default organization created for OAuth user');
     }

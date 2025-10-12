@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, Mail, Shield, UserX, Crown, Users } from 'lucide-react';
+import { X, Building2, Mail, Shield, UserX, Crown, Users, Pencil, Check } from 'lucide-react';
 
 export default function OrganizationModal({ isOpen, onClose, organizationId }) {
   const [orgDetails, setOrgDetails] = useState(null);
@@ -7,6 +7,9 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   const [inviting, setInviting] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newOrgName, setNewOrgName] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   // Fetch organization details
   useEffect(() => {
@@ -130,6 +133,58 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
     }
   };
 
+  // Handle rename organization
+  const handleRenameOrganization = async () => {
+    if (!newOrgName.trim()) {
+      alert('Organization name cannot be empty');
+      return;
+    }
+
+    try {
+      setRenaming(true);
+      const response = await fetch(
+        `http://localhost:3000/organization/${organizationId}/rename`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ name: newOrgName.trim() }),
+        }
+      );
+
+      if (response.ok) {
+        alert('Organization renamed successfully!');
+        setIsRenaming(false);
+        setNewOrgName('');
+        fetchOrganizationDetails();
+        // Dispatch event to refresh navbar
+        window.dispatchEvent(new Event('organizationChanged'));
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to rename organization');
+      }
+    } catch (error) {
+      console.error('Error renaming organization:', error);
+      alert('Failed to rename organization. Please try again.');
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  // Start renaming mode
+  const startRenaming = () => {
+    setNewOrgName(orgDetails?.organization?.name || '');
+    setIsRenaming(true);
+  };
+
+  // Cancel renaming
+  const cancelRenaming = () => {
+    setIsRenaming(false);
+    setNewOrgName('');
+  };
+
   if (!isOpen) return null;
 
   const isAdmin = orgDetails?.organization?.userRole === 'admin';
@@ -144,25 +199,69 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
               <Building2 size={24} className="text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">
-                {loading ? 'Loading...' : orgDetails?.organization?.name || 'Organization'}
-              </h2>
-              <p className="text-indigo-100 text-sm">
-                {isAdmin ? 'Admin View' : 'Member View'}
-              </p>
+            <div className="flex-1">
+              {isRenaming ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newOrgName}
+                    onChange={(e) => setNewOrgName(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg bg-white/90 text-gray-800 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/50 flex-1"
+                    placeholder="Enter organization name"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleRenameOrganization}
+                    disabled={renaming}
+                    className="p-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors duration-200 disabled:bg-gray-400"
+                    title="Save"
+                  >
+                    <Check size={20} className="text-white" />
+                  </button>
+                  <button
+                    onClick={cancelRenaming}
+                    disabled={renaming}
+                    className="p-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors duration-200 disabled:bg-gray-400"
+                    title="Cancel"
+                  >
+                    <X size={20} className="text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      {loading ? 'Loading...' : orgDetails?.organization?.name || 'Organization'}
+                    </h2>
+                    <p className="text-indigo-100 text-sm">
+                      {isAdmin ? 'Admin View' : 'Member View'}
+                    </p>
+                  </div>
+                  {isAdmin && !loading && (
+                    <button
+                      onClick={startRenaming}
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200 ml-2"
+                      title="Rename Organization"
+                    >
+                      <Pencil size={18} className="text-white" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200"
-          >
-            <X size={24} className="text-white" />
-          </button>
+          {!isRenaming && (
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200"
+            >
+              <X size={24} className="text-white" />
+            </button>
+          )}
         </div>
 
         {/* Content */}

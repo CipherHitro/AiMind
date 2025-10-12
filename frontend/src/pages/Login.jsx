@@ -168,19 +168,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
-      <div className="w-full max-w-md">
+    <div className="h-dvh flex items-center justify-center px-4 py-8 md:py-4 overflow-y-auto" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+      <div className="w-full max-w-md my-auto">
         {/* Login Form */}
-        <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 p-8">
+        <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 p-6 md:p-8">
           {/* Title inside the box */}
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+          <div className="text-center mb-4 md:mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
               Welcome Back
             </h1>
-            <p className="text-gray-600 mt-2">Sign in to continue to AiMind</p>
+            <p className="text-gray-600 mt-2 text-sm md:text-base">Sign in to continue to AiMind</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
             {/* Username or Email Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -195,7 +195,7 @@ export default function Login() {
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg bg-white/60 border ${
+                  className={`w-full pl-10 pr-4 py-2.5 md:py-3 rounded-lg bg-white/60 border ${
                     errors.username ? 'border-red-300' : 'border-white/50'
                   } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
                   placeholder="Enter username or email"
@@ -220,7 +220,7 @@ export default function Login() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-12 py-3 rounded-lg bg-white/60 border ${
+                  className={`w-full pl-10 pr-12 py-2.5 md:py-3 rounded-lg bg-white/60 border ${
                     errors.password ? 'border-red-300' : 'border-white/50'
                   } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
                   placeholder="Enter your password"
@@ -269,14 +269,14 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="cursor-pointer w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
+              className="cursor-pointer w-full py-2.5 md:py-3 px-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
             >
               Sign In
             </button>
           </form>
 
           {/* Divider */}
-          <div className="relative my-6">
+          <div className="relative my-4 md:my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
@@ -289,7 +289,7 @@ export default function Login() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="cursor-pointer w-full py-3 px-4 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 active:scale-95"
+            className="cursor-pointer w-full py-2.5 md:py-3 px-4 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 active:scale-95"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -313,7 +313,7 @@ export default function Login() {
           </button>
 
           {/* Signup Link */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 md:mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link to="/signup" className="text-purple-600 hover:text-purple-700 font-semibold hover:underline">

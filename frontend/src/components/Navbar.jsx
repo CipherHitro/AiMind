@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon, Building2, Plus } from 'lucide-react';
+import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon, Building2, Plus, Check, Trash2 } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import OrganizationModal from './OrganizationModal';
 import CreateOrgModal from './CreateOrgModal';
+import { useSocket } from '../hooks/useSocket';
+import { getTimeAgo } from '../utils/timeAgo';
 
 export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [notificationCount] = useState(2);
   const [userProfile, setUserProfile] = useState(null);
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const { logout, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
+  
+  // Socket.IO integration
+  const { connected, notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useSocket();
 
   // Fetch user profile on component mount
   useEffect(() => {
@@ -281,26 +286,82 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
               </div>
 
               {/* Notification */}
-              <div className="relative cursor-pointer group">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center hover:shadow-lg transition-all duration-300 hover:scale-110">
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center hover:shadow-lg transition-all duration-300 hover:scale-110"
+                >
                   <Bell size={20} className="text-blue-600" />
-                  {notificationCount > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg">
-                      {notificationCount}
+                      {unreadCount}
                     </span>
                   )}
-                </div>
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-white/50 p-3 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">Notifications</p>
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-600 p-2 rounded bg-blue-50 border border-blue-100">
-                      You've used 50% of credits
+                </button>
+
+                {isNotificationsOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-96 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-white/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-800">Notifications</p>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        >
+                          <Check size={14} />
+                          Mark all as read
+                        </button>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-600 p-2 rounded bg-green-50 border border-green-100">
-                      New feature available
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification._id}
+                            className={`p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${
+                              !notification.isRead ? 'bg-blue-50/30' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {!notification.isRead && (
+                                <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
+                              )}
+                              <div 
+                                className="flex-1 min-w-0 cursor-pointer"
+                                onClick={() => !notification.isRead && markAsRead(notification._id)}
+                              >
+                                <p className="text-sm font-semibold text-gray-800 truncate">
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {getTimeAgo(notification.createdAt)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification._id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
+                                title="Delete notification"
+                              >
+                                <Trash2 size={14} className="text-red-500" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-500">
+                          <Bell size={32} className="mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">No notifications yet</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Profile Section */}
@@ -341,12 +402,6 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                       <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 flex items-center gap-2">
                         <UserIcon size={16} />
                         Profile Settings
-                      </button>
-                      <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200">
-                        🔧 Preferences
-                      </button>
-                      <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200">
-                        💳 Billing
                       </button>
                       <div className="my-2 border-t border-white/30"></div>
                       <button 
@@ -423,28 +478,171 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
             </div>
           </div>
 
-          {/* Notifications Section */}
+          {/* Organization Section */}
           <div className="p-6 border-b border-white/30">
             <div className="flex items-center gap-3 mb-4">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center shadow-md">
-                  <Bell size={22} className="text-blue-600" />
-                  {notificationCount > 0 && (
-                    <span className="absolute top-0 right-0 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg">
-                      {notificationCount}
-                    </span>
-                  )}
-                </div>
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 flex items-center justify-center shadow-md">
+                <Building2 size={22} className="text-indigo-600" />
               </div>
-              <h4 className="text-sm font-semibold text-gray-800">Notifications</h4>
+              <div>
+                <h3 className="text-sm font-bold text-gray-800">Organization</h3>
+                <p className="text-xs text-gray-500">
+                  {userProfile?.organizations?.length || 0} organization{userProfile?.organizations?.length !== 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-sm text-gray-600 p-3 rounded-lg bg-blue-50 border border-blue-100">
-                You've used 50% of credits
+            
+            {/* Current Organization Display */}
+            <div className="mb-3 px-4 py-3 rounded-lg bg-indigo-50 border border-indigo-200/50">
+              <p className="text-xs text-gray-600 font-medium mb-1">Active Organization</p>
+              <p className="text-sm font-bold text-gray-800">{getActiveOrganization()}</p>
+            </div>
+
+            {/* Organization List */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {userProfile?.organizations && userProfile.organizations.length > 0 ? (
+                userProfile.organizations.map((org) => (
+                  <button
+                    key={org._id}
+                    onClick={() => {
+                      if (!org.isActive) {
+                        handleSwitchOrganization(org._id);
+                      } else {
+                        setShowOrgModal(true);
+                        setIsMobileSidebarOpen(false);
+                      }
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                      org.isActive
+                        ? 'bg-indigo-100 border border-indigo-300'
+                        : 'hover:bg-purple-50 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          org.isActive 
+                            ? 'bg-gradient-to-br from-indigo-500 to-purple-600' 
+                            : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                        }`}>
+                          <Building2 size={18} className="text-white" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[120px]">
+                            {org.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {org.memberCount} member{org.memberCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          org.role === 'admin' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {org.role}
+                        </span>
+                        {org.isDefault && (
+                          <span className="text-xs text-gray-400">Default</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-6 text-center text-gray-500 text-sm">
+                  No organizations found
+                </div>
+              )}
+            </div>
+
+            {/* Create Organization Button */}
+            <button
+              onClick={() => {
+                setShowCreateOrgModal(true);
+                setIsMobileSidebarOpen(false);
+              }}
+              className="w-full mt-3 px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 font-semibold border border-indigo-200/50"
+            >
+              <Plus size={18} />
+              Create Organization
+            </button>
+          </div>
+
+          {/* Notifications Section */}
+          <div className="p-6 border-b border-white/30">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center shadow-md">
+                    <Bell size={22} className="text-blue-600" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <h4 className="text-sm font-semibold text-gray-800">Notifications</h4>
               </div>
-              <div className="text-sm text-gray-600 p-3 rounded-lg bg-green-50 border border-green-100">
-                New feature available
-              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  <Check size={14} />
+                  Mark all
+                </button>
+              )}
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {notifications.length > 0 ? (
+                notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`p-3 rounded-lg border transition-colors group ${
+                      !notification.isRead ? 'bg-blue-50/50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!notification.isRead && (
+                        <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
+                      )}
+                      <div 
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => !notification.isRead && markAsRead(notification._id)}
+                      >
+                        <p className="text-sm font-semibold text-gray-800">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {getTimeAgo(notification.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification._id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
+                        title="Delete notification"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-gray-500">
+                  <Bell size={28} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No notifications yet</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -476,15 +674,6 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
               <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium flex items-center gap-2">
                 <UserIcon size={16} />
                 Profile Settings
-              </button>
-              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium">
-                🔧 Preferences
-              </button>
-              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium">
-                💳 Billing
-              </button>
-              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium">
-                ⚙️ Settings
               </button>
             </div>
           </div>
