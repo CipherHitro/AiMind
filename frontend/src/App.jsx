@@ -1,16 +1,19 @@
-import { useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
-import Navbar from './components/Navbar';
-import ChatInterface from './components/ChatInterface';
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import Chat from './pages/Chat'
 
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
-      <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      <ChatInterface sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   )
 }
 
