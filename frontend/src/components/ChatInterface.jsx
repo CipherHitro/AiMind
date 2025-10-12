@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Menu, X, MessageSquare, Trash2, Edit2, MoreHorizontal } from 'lucide-react';
+import MessageContent from './MessageContent';
 
 export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUpdate }) {
   const [messages, setMessages] = useState([]);
@@ -597,7 +598,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                           : 'bg-white/60 text-gray-800 border border-white/50 rounded-bl-none shadow-md'
                       } backdrop-blur-md break-words`}
                     >
-                      <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{message.content}</p>
+                      <MessageContent content={message.content} isUser={message.role === 'user'} />
                     </div>
                   </div>
                 );

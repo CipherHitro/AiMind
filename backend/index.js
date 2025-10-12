@@ -7,6 +7,7 @@ const chatRoute = require('./routes/chat')
 const notificationRoute = require('./routes/notification')
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+const morgan = require('morgan');
 const { initializeSocket } = require('./services/socket');
 const { authenticateUser } = require('./middlewares/auth');
 
@@ -27,6 +28,15 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
+// Morgan Logger - different formats for development and production
+if (process.env.NODE_ENV === 'production') {
+  // Combined format for production (includes more details)
+  app.use(morgan('combined'));
+} else {
+  // Dev format for development (colored and concise)
+  app.use(morgan('dev'));
+}
+
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -42,10 +52,10 @@ connectMongoDB(process.env.MONGO_URI)
   .catch((err) => console.error(err));
 
 
-app.use('/user', userRoute);
-app.use('/organization', organizationRoute);
-app.use('/chat', chatRoute);
-app.use('/notification', authenticateUser,  notificationRoute);
+app.use('/api/user', userRoute);
+app.use('/api/organization', organizationRoute);
+app.use('/api/chat', chatRoute);
+app.use('/api/notification', authenticateUser,  notificationRoute);
 
 server.listen(port, () => {
   console.log("Server is running at http://localhost:" + port);

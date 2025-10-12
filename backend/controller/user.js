@@ -132,6 +132,7 @@ async function handleLogin(req, res) {
     if (process.env.mode == "development") {
       return res.status(200).json({ message: "Logged in!", token, rememberMe });
     } else {
+      console.log("In production")
       res.cookie("uid", token, {
         httpOnly: false,
         secure: true,
