@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import ChatInterface from '../components/ChatInterface';
 
 function Chat() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userCredits, setUserCredits] = useState(0);
 
   const handleCreditsUpdate = (credits) => {
@@ -11,7 +11,7 @@ function Chat() {
   };
 
   return (
-    <div className="h-dvw flex flex-col overflow-hidden" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+    <div className="h-screen flex flex-col overflow-auto" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
       <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} userCredits={userCredits} />
       <ChatInterface sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onCreditsUpdate={handleCreditsUpdate} />
     </div>
