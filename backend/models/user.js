@@ -31,6 +31,22 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
     },
+    organizations: [
+      {
+        orgId: { type: mongoose.Schema.Types.ObjectId, ref: "organization" },
+        role: { type: String, enum: ["admin", "member"], default: "member" },
+        status: { type: String, enum: ["active", "invited"], default: "active" },
+      },
+    ],
+    activeOrganization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "organization",
+    },
+    credits: {
+      type: Number,
+      default: 1000, // Default 1000 credits for new users
+      min: 0, // Credits cannot go below 0
+    },
   },
   {
     timestamps: true,

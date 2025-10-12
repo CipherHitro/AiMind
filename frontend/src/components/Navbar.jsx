@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon } from 'lucide-react';
+import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon, Building2, Plus } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
+import OrganizationModal from './OrganizationModal';
+import CreateOrgModal from './CreateOrgModal';
 
-export default function Navbar({ sidebarOpen, setSidebarOpen }) {
+export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [notificationCount] = useState(2);
   const [userProfile, setUserProfile] = useState(null);
+  const [showOrgModal, setShowOrgModal] = useState(false);
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const { logout, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
 
@@ -74,6 +79,59 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
     return userProfile.fullName || userProfile.username;
   };
 
+  // Switch active organization
+  const handleSwitchOrganization = async (orgId) => {
+    try {
+      const response = await fetch(`http://localhost:3000/organization/${orgId}/switch`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Refetch user profile to get updated active organization
+        const profileResponse = await fetch('http://localhost:3000/user/profile', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        
+        if (profileResponse.ok) {
+          const data = await profileResponse.json();
+          setUserProfile(data);
+          setIsOrgDropdownOpen(false);
+          
+          // Trigger custom event to notify other components
+          window.dispatchEvent(new Event('organizationChanged'));
+        }
+      } else {
+        console.error('Failed to switch organization');
+      }
+    } catch (error) {
+      console.error('Error switching organization:', error);
+    }
+  };
+
+  // Get active organization
+  const getActiveOrganization = () => {
+    if (!userProfile?.activeOrganization) {
+      return 'No Organization';
+    }
+    return userProfile.activeOrganization.name;
+  };
+
+  // Handle organization created successfully
+  const handleOrgCreated = async () => {
+    // Refetch user profile
+    const response = await fetch('http://localhost:3000/user/profile', {
+      method: 'GET',
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      setUserProfile(data);
+    }
+  };
+
   return (
     <>
       {/* Navbar */}
@@ -107,13 +165,117 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
 
             {/* Right - Desktop View */}
             <div className="hidden md:flex items-center gap-6">
+              {/* Organization Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 hover:shadow-lg hover:from-indigo-100 hover:to-purple-100 transition-all duration-300"
+                >
+                  <Building2 size={18} className="text-indigo-600" />
+                  <span className="text-sm font-semibold text-gray-800 max-w-[150px] truncate">
+                    {getActiveOrganization()}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-gray-600 transition-transform duration-300 ${isOrgDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {/* Organization Dropdown Menu */}
+                {isOrgDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-4 border-b border-white/30">
+                      <p className="font-semibold text-gray-800">Your Organizations</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {userProfile?.organizations?.length || 0} organization{userProfile?.organizations?.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="p-2 max-h-96 overflow-y-auto">
+                      {/* Organization List */}
+                      {userProfile?.organizations && userProfile.organizations.length > 0 ? (
+                        userProfile.organizations.map((org) => (
+                          <div key={org._id} className="mb-1">
+                            <button
+                              onClick={() => {
+                                if (!org.isActive) {
+                                  handleSwitchOrganization(org._id);
+                                } else {
+                                  setShowOrgModal(true);
+                                  setIsOrgDropdownOpen(false);
+                                }
+                              }}
+                              className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                                org.isActive
+                                  ? 'bg-indigo-100 border border-indigo-300'
+                                  : 'hover:bg-purple-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                    org.isActive 
+                                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600' 
+                                      : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                  }`}>
+                                    <Building2 size={18} className="text-white" />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
+                                      {org.name}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {org.memberCount} member{org.memberCount !== 1 ? 's' : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                    org.role === 'admin' 
+                                      ? 'bg-purple-100 text-purple-700' 
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {org.role}
+                                  </span>
+                                  {org.isDefault && (
+                                    <span className="text-xs text-gray-400">Default</span>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-6 text-center text-gray-500 text-sm">
+                          No organizations found
+                        </div>
+                      )}
+                      
+                      {/* Divider */}
+                      <div className="my-2 border-t border-white/30"></div>
+                      
+                      {/* Create Organization Button */}
+                      <button
+                        onClick={() => {
+                          setShowCreateOrgModal(true);
+                          setIsOrgDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200 flex items-center gap-2 font-semibold"
+                      >
+                        <Plus size={18} />
+                        Create Organization
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Credits Section - Prominent Display */}
               <div className="flex items-center gap-1 px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200/50 shadow-md hover:shadow-lg transition-all duration-300">
                 <Zap size={20} className="text-orange-500" strokeWidth={2.5} />
                 <div className="flex flex-col">
                   {/* <span className="text-xs text-gray-600 font-medium">Credits Left</span> */}
                   <span className="bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent font-bold text-lg">
-                    12,450
+                    {userCredits.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -255,7 +417,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
               <div className="flex flex-col">
                 <span className="text-xs text-gray-600 font-medium">Credits Left</span>
                 <span className="bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent font-bold text-xl">
-                  12,450
+                  {userCredits.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -339,6 +501,20 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
           </div>
         </div>
       </div>
+
+      {/* Organization Modal */}
+      <OrganizationModal
+        isOpen={showOrgModal}
+        onClose={() => setShowOrgModal(false)}
+        organizationId={userProfile?.activeOrganization?._id}
+      />
+
+      {/* Create Organization Modal */}
+      <CreateOrgModal
+        isOpen={showCreateOrgModal}
+        onClose={() => setShowCreateOrgModal(false)}
+        onSuccess={handleOrgCreated}
+      />
     </>
   );
 }

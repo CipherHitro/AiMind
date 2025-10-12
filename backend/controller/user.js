@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const Organization = require("../models/organization");
 const bcrypt = require("bcryptjs");
 const { setUser } = require("../services/auth");
 require('dotenv').config();
@@ -58,6 +59,7 @@ async function handleSignup(req, res) {
     const salt = bcrypt.genSaltSync(10);
     const passHash = bcrypt.hashSync(password, salt);
 
+    // Create user first
     const user = await User.create({
       username,
       email,
@@ -66,6 +68,33 @@ async function handleSignup(req, res) {
     });
 
     if (user) {
+      // Create default organization for the user
+      const defaultOrg = await Organization.create({
+        name: `${username}'s Organization`,
+        owner: user._id,
+        members: [
+          {
+            userId: user._id,
+            role: 'admin',
+            status: 'active',
+            joinedAt: new Date()
+          }
+        ],
+        isDefault: true
+      });
+
+      // Update user with organization info
+      user.organizations = [
+        {
+          orgId: defaultOrg._id,
+          role: 'admin',
+          status: 'active'
+        }
+      ];
+      user.activeOrganization = defaultOrg._id;
+      await user.save();
+
+      console.log('User and default organization created successfully');
       return res.status(201).json({ message: "User created", user });
     }
   } catch (error) {
@@ -117,12 +146,14 @@ async function handleOAuthLogin(req, res) {
   const { email, name, picture, sub } = req.body;
   console.log("OAuth login request received");
   console.log("Request body:", req.body);
-
+  
   try {
     // Check if user already exists by email or OAuth sub
     let user = await User.findOne({ 
       $or: [{ email }, { oauthId: sub }] 
     });
+
+    let isNewUser = false;
 
     if (user) {
       console.log("Existing user found:", user.username);
@@ -137,6 +168,8 @@ async function handleOAuthLogin(req, res) {
       }
     } else {
       console.log("Creating new OAuth user");
+      isNewUser = true;
+      
       // Create new user from OAuth data
       // Generate username from email or name
       let username = email.split('@')[0];
@@ -163,6 +196,34 @@ async function handleOAuthLogin(req, res) {
       });
       
       console.log("New OAuth user created:", user.username);
+
+      // Create default organization for new OAuth user
+      const defaultOrg = await Organization.create({
+        name: `${name}'s Organization`,
+        owner: user._id,
+        members: [
+          {
+            userId: user._id,
+            role: 'admin',
+            status: 'active',
+            joinedAt: new Date()
+          }
+        ],
+        isDefault: true
+      });
+
+      // Update user with organization info
+      user.organizations = [
+        {
+          orgId: defaultOrg._id,
+          role: 'admin',
+          status: 'active'
+        }
+      ];
+      user.activeOrganization = defaultOrg._id;
+      await user.save();
+
+      console.log('Default organization created for OAuth user');
     }
 
     // Generate token
@@ -202,6 +263,25 @@ async function getUserProfile(req, res) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // Populate organizations
+    const userWithOrgs = await User.findById(user._id)
+      .populate({
+        path: 'organizations.orgId',
+        select: 'name owner isDefault members'
+      })
+      .populate('activeOrganization', 'name');
+
+    // Format organizations data
+    const organizations = userWithOrgs.organizations.map(org => ({
+      _id: org.orgId._id,
+      name: org.orgId.name,
+      role: org.role,
+      status: org.status,
+      isDefault: org.orgId.isDefault,
+      memberCount: org.orgId.members.length,
+      isActive: userWithOrgs.activeOrganization?._id.toString() === org.orgId._id.toString()
+    }));
+
     // Return user profile without sensitive information
     return res.status(200).json({
       username: user.username,
@@ -209,10 +289,36 @@ async function getUserProfile(req, res) {
       fullName: user.fullName || user.username,
       picture: user.picture || null,
       name: user.name || user.fullName || user.username,
+      organizations: organizations,
+      activeOrganization: userWithOrgs.activeOrganization ? {
+        _id: userWithOrgs.activeOrganization._id,
+        name: userWithOrgs.activeOrganization.name
+      } : null,
+      credits: user.credits || 0 // Include credits in profile response
     });
   } catch (error) {
     console.error('Get profile error:', error);
     return res.status(500).json({ message: "Error fetching profile", error: error.message });
+  }
+}
+
+// Get user credits
+async function getUserCredits(req, res) {
+  try {
+    const user = req.user;
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    return res.status(200).json({ 
+      credits: user.credits || 0,
+      username: user.username,
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Get credits error:', error);
+    return res.status(500).json({ message: "Error fetching credits" });
   }
 }
 
@@ -222,4 +328,5 @@ module.exports = {
   handleCheckUsername,
   handleOAuthLogin,
   getUserProfile,
+  getUserCredits,
 };

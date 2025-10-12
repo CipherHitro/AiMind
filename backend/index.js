@@ -1,6 +1,8 @@
 const express = require("express");
 const { connectMongoDB } = require("./connection");
 const userRoute = require('./routes/user')
+const organizationRoute = require('./routes/organization')
+const chatRoute = require('./routes/chat')
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
 require("dotenv").config();
@@ -8,7 +10,7 @@ require("dotenv").config();
 const corsOptions = {
   origin: 'http://localhost:5173', //  Must be a specific origin, not '*'
   credentials: true,              // Allow cookies
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 const app = express();
@@ -30,6 +32,8 @@ connectMongoDB(process.env.MONGO_URI)
 
 
 app.use('/user', userRoute);
+app.use('/organization', organizationRoute);
+app.use('/chat', chatRoute);
 
 app.listen(port, () => {
   console.log("Server is running at http://localhost:" + port);
