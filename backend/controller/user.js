@@ -62,6 +62,7 @@ async function handleSignup(req, res) {
       username,
       email,
       password: passHash,
+      fullName: username, // Use username as fullName for regular signups
     });
 
     if (user) {
@@ -111,8 +112,114 @@ async function handleLogin(req, res) {
     return res.status(500).json({ message: "Error during login" });
   }
 }
+
+async function handleOAuthLogin(req, res) {
+  const { email, name, picture, sub } = req.body;
+  console.log("OAuth login request received");
+  console.log("Request body:", req.body);
+
+  try {
+    // Check if user already exists by email or OAuth sub
+    let user = await User.findOne({ 
+      $or: [{ email }, { oauthId: sub }] 
+    });
+
+    if (user) {
+      console.log("Existing user found:", user.username);
+      // User exists - update OAuth info if needed
+      if (!user.oauthId) {
+        user.oauthId = sub;
+        user.picture = picture;
+        user.name = name;
+        user.fullName = name; // Update fullName with Google name
+        await user.save();
+        console.log("Updated existing user with OAuth info");
+      }
+    } else {
+      console.log("Creating new OAuth user");
+      // Create new user from OAuth data
+      // Generate username from email or name
+      let username = email.split('@')[0];
+      
+      // Ensure username is unique
+      let existingUsername = await User.findOne({ username });
+      let counter = 1;
+      while (existingUsername) {
+        username = `${email.split('@')[0]}${counter}`;
+        existingUsername = await User.findOne({ username });
+        counter++;
+      }
+
+      console.log("Generated username:", username);
+
+      user = await User.create({
+        username,
+        email,
+        oauthId: sub,
+        picture,
+        name,
+        fullName: name, // Use Google name as fullName for OAuth users
+        // Don't set password field at all for OAuth users
+      });
+      
+      console.log("New OAuth user created:", user.username);
+    }
+
+    // Generate token
+    const token = setUser(user);
+    console.log("Token generated for user:", user.username);
+
+    if (process.env.mode == "development") {
+      console.log("Sending development response with token");
+      return res.status(200).json({ 
+        message: "Logged in!", 
+        token, 
+        user: { username: user.username, email: user.email } 
+      });
+    } else {
+      res.cookie("uid", token, {
+        httpOnly: false,
+        secure: true,
+        sameSite: "Lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for OAuth
+      });
+      return res.status(200).json({ 
+        message: "Logged in!",
+        user: { username: user.username, email: user.email }
+      });
+    }
+  } catch (error) {
+    console.error('OAuth login error:', error);
+    return res.status(500).json({ message: "Error during OAuth login", error: error.message });
+  }
+}
+
+async function getUserProfile(req, res) {
+  try {
+    const user = req.user; // Assuming you have authentication middleware that adds user to req
+    
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Return user profile without sensitive information
+    return res.status(200).json({
+      username: user.username,
+      email: user.email,
+      fullName: user.fullName || user.username,
+      picture: user.picture || null,
+      name: user.name || user.fullName || user.username,
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return res.status(500).json({ message: "Error fetching profile", error: error.message });
+  }
+}
+
 module.exports = {
   handleLogin,
   handleSignup,
   handleCheckUsername,
+  handleOAuthLogin,
+  getUserProfile,
 };

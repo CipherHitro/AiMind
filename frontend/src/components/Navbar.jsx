@@ -1,10 +1,78 @@
-import React, { useState } from 'react';
-import { Bell, ChevronDown, Zap, X, Menu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon } from 'lucide-react';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useNavigate } from 'react-router-dom';
+import Cookies from 'js-cookie';
 
 export default function Navbar({ sidebarOpen, setSidebarOpen }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [notificationCount] = useState(2);
+  const [userProfile, setUserProfile] = useState(null);
+  const { logout, isAuthenticated } = useAuth0();
+  const navigate = useNavigate();
+
+  // Fetch user profile on component mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/user/profile', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile(data);
+        } else {
+          console.error('Failed to fetch user profile');
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  // Handle logout
+  const handleLogout = () => {
+    // Remove cookie
+    Cookies.remove('uid', { path: '/' });
+    
+    // If user is authenticated with Auth0, logout from Auth0
+    if (isAuthenticated) {
+      logout({
+        logoutParams: {
+          returnTo: `${window.location.origin}/login`
+        }
+      });
+    } else {
+      // Regular logout - just navigate to login
+      navigate('/login');
+    }
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!userProfile) return 'U';
+    
+    if (userProfile.fullName) {
+      const names = userProfile.fullName.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return userProfile.fullName.substring(0, 2).toUpperCase();
+    }
+    
+    return userProfile.username.substring(0, 2).toUpperCase();
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!userProfile) return 'Loading...';
+    return userProfile.fullName || userProfile.username;
+  };
 
   return (
     <>
@@ -79,11 +147,19 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-3 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg hover:from-purple-100 hover:to-indigo-100 transition-all duration-300 group"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
-                    <span className="text-white font-bold text-sm">JD</span>
-                  </div>
+                  {userProfile?.picture ? (
+                    <img 
+                      src={userProfile.picture} 
+                      alt={getDisplayName()}
+                      className="w-8 h-8 rounded-full shadow-md object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
+                      <span className="text-white font-bold text-sm">{getUserInitials()}</span>
+                    </div>
+                  )}
                   <div className="flex flex-col items-start">
-                    <span className="text-sm font-semibold text-gray-800">John Doe</span>
+                    <span className="text-sm font-semibold text-gray-800">{getDisplayName()}</span>
                     <span className="text-xs text-gray-500">Premium</span>
                   </div>
                   <ChevronDown
@@ -96,12 +172,13 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
                 {isProfileOpen && (
                   <div className="absolute right-0 top-full mt-3 w-56 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 p-4 border-b border-white/30">
-                      <p className="font-semibold text-gray-800">John Doe</p>
-                      <p className="text-xs text-gray-500 mt-1">john@example.com</p>
+                      <p className="font-semibold text-gray-800">{getDisplayName()}</p>
+                      <p className="text-xs text-gray-500 mt-1">{userProfile?.email || 'Loading...'}</p>
                     </div>
                     <div className="p-2">
-                      <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200">
-                        👤 Profile Settings
+                      <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <UserIcon size={16} />
+                        Profile Settings
                       </button>
                       <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200">
                         🔧 Preferences
@@ -110,8 +187,12 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
                         💳 Billing
                       </button>
                       <div className="my-2 border-t border-white/30"></div>
-                      <button className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200">
-                        🚪 Logout
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                      >
+                        <LogOut size={16} />
+                        Logout
                       </button>
                     </div>
                   </div>
@@ -124,9 +205,17 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
               onClick={() => setIsMobileSidebarOpen(true)}
               className="md:hidden flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg transition-all duration-300"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-sm">JD</span>
-              </div>
+              {userProfile?.picture ? (
+                <img 
+                  src={userProfile.picture} 
+                  alt={getDisplayName()}
+                  className="w-8 h-8 rounded-full shadow-md object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
+                  <span className="text-white font-bold text-sm">{getUserInitials()}</span>
+                </div>
+              )}
             </button>
           </div>
         </div>
@@ -201,21 +290,30 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
           <div className="p-6 border-b border-white/30">
             <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 p-4 rounded-xl border border-purple-200/30 mb-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
-                  <span className="text-white font-bold text-lg">JD</span>
-                </div>
+                {userProfile?.picture ? (
+                  <img 
+                    src={userProfile.picture} 
+                    alt={getDisplayName()}
+                    className="w-12 h-12 rounded-full shadow-md object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center shadow-md">
+                    <span className="text-white font-bold text-lg">{getUserInitials()}</span>
+                  </div>
+                )}
                 <div className="flex flex-col">
-                  <p className="font-semibold text-gray-800">John Doe</p>
+                  <p className="font-semibold text-gray-800">{getDisplayName()}</p>
                   <p className="text-xs text-gray-500">Premium</p>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">john@example.com</p>
+              <p className="text-xs text-gray-500">{userProfile?.email || 'Loading...'}</p>
             </div>
 
             {/* Menu Items */}
             <div className="space-y-2">
-              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium">
-                👤 Profile Settings
+              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium flex items-center gap-2">
+                <UserIcon size={16} />
+                Profile Settings
               </button>
               <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium">
                 🔧 Preferences
@@ -231,8 +329,12 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
 
           {/* Logout */}
           <div className="p-6">
-            <button className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium border border-red-200/50">
-              🚪 Logout
+            <button 
+              onClick={handleLogout}
+              className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium border border-red-200/50 flex items-center justify-center gap-2"
+            >
+              <LogOut size={16} />
+              Logout
             </button>
           </div>
         </div>

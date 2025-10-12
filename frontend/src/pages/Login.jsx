@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import { useAuth0 } from '@auth0/auth0-react';
 import Cookies from 'js-cookie'
 
 export default function Login() {
   const navigate = useNavigate();
   const BASE_URL = import.meta.env.BASE_API_URL;
+  const { loginWithRedirect, isAuthenticated, user, isLoading } = useAuth0();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -15,6 +17,57 @@ export default function Login() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [oauthProcessed, setOauthProcessed] = useState(false);
+
+  // Handle Auth0 authentication callback
+  useEffect(() => {
+    const handleOAuthLogin = async () => {
+      if (isAuthenticated && user && !oauthProcessed) {
+        setOauthProcessed(true); // Prevent multiple calls
+        
+        try {
+          // Send OAuth user data to backend
+          const response = await fetch('http://localhost:3000/user/oauth-login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name,
+              picture: user.picture,
+              sub: user.sub, // Auth0 user ID
+            }),
+          });
+
+          const result = await response.json();
+          
+          if (response.ok) {
+            // Set cookie if in development mode
+            console.log("OAuth authentication successful");
+            if (import.meta.env.VITE_MODE === 'development' && result.token) {
+              console.log("Setting OAuth cookie");
+              Cookies.set('uid', result.token, { expires: 7, path: '/', sameSite: 'Lax' });
+            }
+            navigate('/chat');
+          } else {
+            console.error('OAuth login failed:', result.message);
+            alert(result.message || 'OAuth login failed');
+            setOauthProcessed(false); // Reset on failure
+          }
+        } catch (error) {
+          console.error('OAuth login error:', error);
+          alert('Error during OAuth login');
+          setOauthProcessed(false); // Reset on failure
+        }
+      }
+    };
+
+    if (!oauthProcessed) {
+      handleOAuthLogin();
+    }
+  }, [isAuthenticated, user, navigate, oauthProcessed]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -87,14 +140,32 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    // Handle Google login logic here
-    console.log('Google login clicked');
+    // Trigger Auth0 Google login with redirect
+    loginWithRedirect({
+      authorizationParams: {
+        connection: 'google-oauth2',
+      },
+    });
   };
 
   const handleForgotPassword = () => {
     // Handle forgot password logic here
     console.log('Forgot password clicked');
   };
+
+  // Show loading state while OAuth is being processed
+  if (isLoading || (isAuthenticated && user && !oauthProcessed)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+        <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Processing authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>

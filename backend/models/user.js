@@ -14,7 +14,22 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      require: true,
+      require: false, // Not required for OAuth users
+    },
+    fullName: {
+      type: String,
+      require: false, // Will be username for regular users, Google name for OAuth users
+    },
+    oauthId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values but enforces uniqueness when present
+    },
+    picture: {
+      type: String,
+    },
+    name: {
+      type: String,
     },
   },
   {

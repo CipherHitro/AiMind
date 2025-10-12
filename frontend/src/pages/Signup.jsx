@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, User, Lock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useAuth0 } from '@auth0/auth0-react';
+import Cookies from 'js-cookie';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { loginWithRedirect, isAuthenticated, user, isLoading } = useAuth0();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -20,6 +23,7 @@ export default function Signup() {
     hasNumber: false,
     hasSymbol: false
   });
+  const [oauthProcessed, setOauthProcessed] = useState(false);
 
   // Username availability state
   const [usernameStatus, setUsernameStatus] = useState({
@@ -101,6 +105,55 @@ export default function Signup() {
       }
     };
   }, [formData.username]);
+
+  // Handle Auth0 authentication callback
+  useEffect(() => {
+    const handleOAuthSignup = async () => {
+      if (isAuthenticated && user && !oauthProcessed) {
+        setOauthProcessed(true); // Prevent multiple calls
+        
+        try {
+          // Send OAuth user data to backend
+          const response = await fetch('http://localhost:3000/user/oauth-login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name,
+              picture: user.picture,
+              sub: user.sub, // Auth0 user ID
+            }),
+          });
+
+          const result = await response.json();
+          
+          if (response.ok) {
+            console.log("OAuth signup successful");
+            if (import.meta.env.VITE_MODE === 'development' && result.token) {
+              console.log("Setting OAuth cookie");
+              Cookies.set('uid', result.token, { expires: 7, path: '/', sameSite: 'Lax' });
+            }
+            navigate('/chat');
+          } else {
+            console.error('OAuth signup failed:', result.message);
+            alert(result.message || 'OAuth signup failed');
+            setOauthProcessed(false); // Reset on failure
+          }
+        } catch (error) {
+          console.error('OAuth signup error:', error);
+          alert('Error during OAuth signup');
+          setOauthProcessed(false); // Reset on failure
+        }
+      }
+    };
+
+    if (!oauthProcessed) {
+      handleOAuthSignup();
+    }
+  }, [isAuthenticated, user, navigate, oauthProcessed]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -184,9 +237,28 @@ export default function Signup() {
   };
 
   const handleGoogleSignup = () => {
-    // Handle Google signup logic here
-    console.log('Google signup clicked');
+    // Trigger Auth0 Google login with redirect
+    // Using the same flow as login to avoid callback URL mismatch
+    loginWithRedirect({
+      authorizationParams: {
+        connection: 'google-oauth2',
+      },
+    });
   };
+
+  // Show loading state while OAuth is being processed
+  if (isLoading || (isAuthenticated && user && !oauthProcessed)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+        <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Processing authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
