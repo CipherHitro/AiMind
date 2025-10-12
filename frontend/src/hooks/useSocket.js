@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3000';
+const BASE_URL = import.meta.env.VITE_BASE_API_URL;
 
 export const useSocket = () => {
   const [socket, setSocket] = useState(null);
@@ -10,7 +10,7 @@ export const useSocket = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const newSocket = io(SOCKET_URL, {
+    const newSocket = io(BASE_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
     });
@@ -48,9 +48,10 @@ export const useSocket = () => {
     };
   }, []);
 
+  // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`http://localhost:3000/notification/${notificationId}/read`, {
+      const response = await fetch(`${BASE_URL}/notification/${notificationId}/read`, {
         method: 'PATCH',
         credentials: 'include',
       });
@@ -70,7 +71,7 @@ export const useSocket = () => {
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('http://localhost:3000/notification/mark-all-read', {
+      const response = await fetch(`${BASE_URL}/notification/mark-all-read`, {
         method: 'PATCH',
         credentials: 'include',
       });
@@ -86,7 +87,7 @@ export const useSocket = () => {
 
   const deleteNotification = async (notificationId) => {
     try {
-      const response = await fetch(`http://localhost:3000/notification/${notificationId}`, {
+      const response = await fetch(`${BASE_URL}/notification/${notificationId}`, {
         method: 'DELETE',
         credentials: 'include',
       });

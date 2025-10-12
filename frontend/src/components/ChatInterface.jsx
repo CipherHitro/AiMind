@@ -16,7 +16,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const [tempChatTitle, setTempChatTitle] = useState('New Chat');
   const [userCredits, setUserCredits] = useState(0);
   const messagesEndRef = useRef(null);
-
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -28,7 +28,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   // Fetch chats from server
   const fetchChats = async () => {
     try {
-      const response = await fetch('http://localhost:3000/chat', {
+      const response = await fetch(`${BASE_URL}/chat`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -53,7 +53,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   // Fetch user credits
   const fetchUserCredits = async () => {
     try {
-      const response = await fetch('http://localhost:3000/user/credits', {
+      const response = await fetch(`${BASE_URL}/user/credits`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -77,7 +77,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const loadChat = async (chatId) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/chat/${chatId}`, {
+      const response = await fetch(`${BASE_URL}/chat/${chatId}`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -130,10 +130,10 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
 
     try {
       let chatId = activeChatId;
-      
+      console.log(BASE_URL)
       // If this is a temporary chat, create it in database first
       if (isTemporaryChat) {
-        const createResponse = await fetch('http://localhost:3000/chat/create', {
+        const createResponse = await fetch(`${BASE_URL}/chat/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
       }
 
       // Now send the message
-      const response = await fetch(`http://localhost:3000/chat/${chatId}/message`, {
+      const response = await fetch(`${BASE_URL}/chat/${chatId}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -244,7 +244,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     if (!confirm('Are you sure you want to delete this chat?')) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/chat/${chatId}`, {
+      const response = await fetch(`${BASE_URL}/chat/${chatId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -274,7 +274,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
 
     try {
       console.log('Renaming chat:', chatId, 'to:', newTitle);
-      const response = await fetch(`http://localhost:3000/chat/${chatId}`, {
+      const response = await fetch(`${BASE_URL}/chat/${chatId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +321,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
       
       // If this is a temporary chat, create it in database first
       if (isTemporaryChat) {
-        const createResponse = await fetch('http://localhost:3000/chat/create', {
+        const createResponse = await fetch(`${BASE_URL}/chat/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -345,7 +345,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
       }
 
       // Now send the message
-      const response = await fetch(`http://localhost:3000/chat/${chatId}/message`, {
+      const response = await fetch(`${BASE_URL}/chat/${chatId}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

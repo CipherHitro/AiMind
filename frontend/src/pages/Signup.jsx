@@ -6,6 +6,7 @@ import Cookies from 'js-cookie';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const { loginWithRedirect, isAuthenticated, user, isLoading } = useAuth0();
   const [formData, setFormData] = useState({
     username: '',
@@ -57,7 +58,7 @@ export default function Signup() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/user/check-username?username=${encodeURIComponent(username)}`,
+        `${BASE_URL}/user/check-username?username=${encodeURIComponent(username)}`,
         {
           method: 'GET',
           headers: {
@@ -114,7 +115,7 @@ export default function Signup() {
         
         try {
           // Send OAuth user data to backend
-          const response = await fetch('http://localhost:3000/user/oauth-login', {
+          const response = await fetch(`${BASE_URL}/user/oauth-login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -215,7 +216,7 @@ export default function Signup() {
       return;
     }
     // Handle signup logic here
-    const response = await fetch(`http://localhost:3000/user/signup`, {
+    const response = await fetch(`${BASE_URL}/user/signup`, {
       method: 'POST',
       headers : {
         "Content-Type" : "application/json"

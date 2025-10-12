@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Building2, Mail, Shield, UserX, Crown, Users, Pencil, Check } from 'lucide-react';
 
 export default function OrganizationModal({ isOpen, onClose, organizationId }) {
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const [orgDetails, setOrgDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -21,7 +22,7 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
   const fetchOrganizationDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/organization/${organizationId}`, {
+      const response = await fetch(`${BASE_URL}/organization/${organizationId}`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -47,7 +48,7 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
 
     try {
       setInviting(true);
-      const response = await fetch(`http://localhost:3000/organization/${organizationId}/invite`, {
+      const response = await fetch(`${BASE_URL}/organization/${organizationId}/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
   const handleUpdateRole = async (memberId, newRole) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/organization/${organizationId}/members/${memberId}/role`,
+        `${BASE_URL}/organization/${organizationId}/members/${memberId}/role`,
         {
           method: 'PATCH',
           headers: {
@@ -113,7 +114,7 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/organization/${organizationId}/members/${memberId}`,
+        `${BASE_URL}/organization/${organizationId}/members/${memberId}`,
         {
           method: 'DELETE',
           credentials: 'include',
@@ -143,7 +144,7 @@ export default function OrganizationModal({ isOpen, onClose, organizationId }) {
     try {
       setRenaming(true);
       const response = await fetch(
-        `http://localhost:3000/organization/${organizationId}/rename`,
+        `${BASE_URL}/organization/${organizationId}/rename`,
         {
           method: 'PATCH',
           headers: {

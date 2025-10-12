@@ -6,7 +6,7 @@ import Cookies from 'js-cookie'
 
 export default function Login() {
   const navigate = useNavigate();
-  const BASE_URL = import.meta.env.BASE_API_URL;
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const { loginWithRedirect, isAuthenticated, user, isLoading } = useAuth0();
 
   const [formData, setFormData] = useState({
@@ -27,7 +27,7 @@ export default function Login() {
         
         try {
           // Send OAuth user data to backend
-          const response = await fetch('http://localhost:3000/user/oauth-login', {
+          const response = await fetch(`${BASE_URL}/user/oauth-login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export default function Login() {
     }
     console.log(import.meta.env.VITE_MODE)
     // Handle login logic here
-    const response = await fetch(`http://localhost:3000/user/login`, {
+    const response = await fetch(`${BASE_URL}/user/login`, {
       method : "POST",
       headers: {
         "Content-Type" : "application/json",

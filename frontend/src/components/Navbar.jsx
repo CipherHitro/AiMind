@@ -18,6 +18,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const { logout, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   
   // Socket.IO integration
   const { connected, notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useSocket();
@@ -26,7 +27,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await fetch('http://localhost:3000/user/profile', {
+        const response = await fetch(`${BASE_URL}/user/profile`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -87,14 +88,14 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   // Switch active organization
   const handleSwitchOrganization = async (orgId) => {
     try {
-      const response = await fetch(`http://localhost:3000/organization/${orgId}/switch`, {
+      const response = await fetch(`${BASE_URL}/organization/${orgId}/switch`, {
         method: 'POST',
         credentials: 'include',
       });
 
       if (response.ok) {
         // Refetch user profile to get updated active organization
-        const profileResponse = await fetch('http://localhost:3000/user/profile', {
+        const profileResponse = await fetch(`${BASE_URL}/user/profile`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -124,16 +125,20 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   };
 
   // Handle organization created successfully
-  const handleOrgCreated = async () => {
-    // Refetch user profile
-    const response = await fetch('http://localhost:3000/user/profile', {
-      method: 'GET',
-      credentials: 'include',
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      setUserProfile(data);
+  const handleOrganizationCreated = async () => {
+    // Refetch user profile to get updated organizations
+    try {
+      const response = await fetch(`${BASE_URL}/user/profile`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching updated profile:', error);
     }
   };
 
@@ -702,7 +707,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
       <CreateOrgModal
         isOpen={showCreateOrgModal}
         onClose={() => setShowCreateOrgModal(false)}
-        onSuccess={handleOrgCreated}
+        onSuccess={handleOrganizationCreated}
       />
     </>
   );

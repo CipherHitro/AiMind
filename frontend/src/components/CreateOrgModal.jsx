@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Building2, Mail, Plus, Trash2 } from 'lucide-react';
 
 export default function CreateOrgModal({ isOpen, onClose, onSuccess }) {
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const [orgName, setOrgName] = useState('');
   const [inviteEmails, setInviteEmails] = useState([{ email: '', role: 'member' }]);
   const [creating, setCreating] = useState(false);
@@ -40,7 +41,7 @@ export default function CreateOrgModal({ isOpen, onClose, onSuccess }) {
         .filter((invite) => invite.email.trim() !== '')
         .map((invite) => ({ email: invite.email.trim(), role: invite.role }));
 
-      const response = await fetch('http://localhost:3000/organization/create', {
+      const response = await fetch(`${BASE_URL}/organization/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
