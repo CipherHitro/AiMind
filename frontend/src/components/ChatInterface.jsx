@@ -407,7 +407,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   ];
 
   return (
-    <div className="flex-1 flex overflow-hidden relative">
+    <div className="flex-1 flex overflow-hidden relative min-h-0">
       {/* Backdrop blur overlay for mobile - only blurs chat area, not navbar */}
       {sidebarOpen && (
         <div 

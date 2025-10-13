@@ -146,26 +146,27 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
     <>
       {/* Navbar */}
       <nav className="backdrop-blur-md bg-white/40 border-b border-white/20 sticky top-0 z-40">
-        <div className="max-w-screen mx-3 px-6 py-4">
+        <div className="max-w-screen mx-2 sm:mx-3 px-3 sm:px-6 py-2.5 sm:py-4">
           <div className="flex items-center justify-between">
             {/* Left - Hamburger Menu + Logo and AI Name */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Hamburger Menu Button - Space always reserved */}
-              <div className="w-10">
+              <div className="w-8 sm:w-10">
                 {!sidebarOpen && (
                   <button
                     onClick={() => setSidebarOpen(true)}
-                    className="p-2 hover:bg-purple-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95"
+                    className="p-1.5 sm:p-2 hover:bg-purple-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95"
                   >
-                    <Menu size={24} className="text-gray-700 hover:text-purple-600 transition-colors duration-300" />
+                    <Menu size={20} className="sm:hidden text-gray-700 hover:text-purple-600 transition-colors duration-300" />
+                    <Menu size={24} className="hidden sm:block text-gray-700 hover:text-purple-600 transition-colors duration-300" />
                   </button>
                 )}
               </div>
               
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">A</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-base sm:text-lg">A</span>
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   AiMind
                 </h1>

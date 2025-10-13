@@ -11,7 +11,7 @@ function Chat() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-auto" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
       <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} userCredits={userCredits} />
       <ChatInterface sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onCreditsUpdate={handleCreditsUpdate} />
     </div>
