@@ -39,8 +39,11 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         setChatHistory(data.chats);
         setCurrentOrgId(data.organizationId);
         
-        // If no active chat and chats exist, select the first one
-        if (!activeChatId && data.chats.length > 0) {
+        // If no chats exist, create a temporary welcome chat
+        if (data.chats.length === 0) {
+          createTemporaryWelcomeChat();
+        } else if (!activeChatId && data.chats.length > 0) {
+          // If chats exist and no active chat, load the first one
           loadChat(data.chats[0]._id);
         }
       } else {
@@ -49,6 +52,20 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     } catch (error) {
       console.error('Error fetching chats:', error);
     }
+  };
+
+  // Create a temporary welcome chat for new/returning users
+  const createTemporaryWelcomeChat = () => {
+    setIsTemporaryChat(true);
+    setActiveChatId('temp-welcome-chat');
+    setTempChatTitle('New Chat');
+    setMessages([
+      {
+        role: 'system',
+        content: 'Welcome to AiMind\n\nStart a conversation with your AI assistant. Ask me anything, and I\'ll help you with information, creative tasks, coding, and more.',
+        timestamp: new Date()
+      }
+    ]);
   };
 
   // Fetch user credits
