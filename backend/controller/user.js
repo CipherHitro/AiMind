@@ -248,7 +248,7 @@ async function handleOAuthLogin(req, res) {
     } else {
       res.cookie("uid", token, {
         httpOnly: true,
-        maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 1 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         secure: process.env.NODE_ENV === "production", // HTTPS only in production
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Cross-site cookies
       });
