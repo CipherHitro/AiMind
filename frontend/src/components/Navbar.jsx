@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bell, ChevronDown, Zap, X, Menu, LogOut, User as UserIcon, Building2, Plus, Check, Trash2 } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
@@ -19,9 +19,37 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   const { logout, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
+
+  // Refs for click outside detection
+  const profileRef = useRef(null);
+  const orgDropdownRef = useRef(null);
+  const notificationsRef = useRef(null);
   
   // Socket.IO integration
   const { connected, notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useSocket();
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+      if (orgDropdownRef.current && !orgDropdownRef.current.contains(event.target)) {
+        setIsOrgDropdownOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch user profile on component mount
   useEffect(() => {
@@ -47,9 +75,16 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   }, []);
 
   // Handle logout
-  const handleLogout = () => {
-    // Remove cookie
-    Cookies.remove('uid', { path: '/' });
+  const handleLogout = async () => {
+    try {
+      // Call backend to clear httpOnly cookie
+      await fetch(`${BASE_URL}/user/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     
     // If user is authenticated with Auth0, logout from Auth0
     if (isAuthenticated) {
@@ -177,10 +212,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
             {/* Right - Desktop View */}
             <div className="hidden md:flex items-center gap-6">
               {/* Organization Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={orgDropdownRef}>
                 <button
                   onClick={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 hover:shadow-lg hover:from-indigo-100 hover:to-purple-100 transition-all duration-300"
+                  className="cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 hover:shadow-lg hover:from-indigo-100 hover:to-purple-100 transition-all duration-300"
                 >
                   <Building2 size={18} className="text-indigo-600" />
                   <span className="text-sm font-semibold text-gray-800 max-w-[150px] truncate">
@@ -215,7 +250,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                                   setIsOrgDropdownOpen(false);
                                 }
                               }}
-                              className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                              className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
                                 org.isActive
                                   ? 'bg-indigo-100 border border-indigo-300'
                                   : 'hover:bg-purple-50'
@@ -292,10 +327,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
               </div>
 
               {/* Notification */}
-              <div className="relative">
+              <div className="relative" ref={notificationsRef}>
                 <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center hover:shadow-lg transition-all duration-300 hover:scale-110"
+                  className="cursor-pointer w-10 h-10 rounded-full bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200/50 flex items-center justify-center hover:shadow-lg transition-all duration-300 hover:scale-110"
                 >
                   <Bell size={20} className="text-blue-600" />
                   {unreadCount > 0 && (
@@ -371,10 +406,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
               </div>
 
               {/* Profile Section */}
-              <div className="relative">
+              <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg hover:from-purple-100 hover:to-indigo-100 transition-all duration-300 group"
+                  className="cursor-pointer flex items-center gap-3 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg hover:from-purple-100 hover:to-indigo-100 transition-all duration-300 group"
                 >
                   {userProfile?.picture ? (
                     <img 
@@ -405,14 +440,14 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                       <p className="text-xs text-gray-500 mt-1">{userProfile?.email || 'Loading...'}</p>
                     </div>
                     <div className="p-2">
-                      <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                      <button className="cursor-pointer w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 flex items-center gap-2">
                         <UserIcon size={16} />
                         Profile Settings
                       </button>
                       <div className="my-2 border-t border-white/30"></div>
                       <button 
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                        className="cursor-pointer w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-2"
                       >
                         <LogOut size={16} />
                         Logout
@@ -470,9 +505,9 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
         </div>
 
         {/* Sidebar Content */}
-        <div className="overflow-y-auto h-full pb-20">
+        <div className="overflow-y-auto h-full pb-32">
           {/* Credits Section */}
-          <div className="p-6 border-b border-white/30">
+          <div className="px-6 border-b border-white/30">
             <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200/50">
               <Zap size={22} className="text-orange-500" strokeWidth={2.5} />
               <div className="flex flex-col">
@@ -499,10 +534,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
             </div>
             
             {/* Current Organization Display */}
-            <div className="mb-3 px-4 py-3 rounded-lg bg-indigo-50 border border-indigo-200/50">
+            {/* <div className="mb-3 px-4 py-3 rounded-lg bg-indigo-50 border border-indigo-200/50">
               <p className="text-xs text-gray-600 font-medium mb-1">Active Organization</p>
               <p className="text-sm font-bold text-gray-800">{getActiveOrganization()}</p>
-            </div>
+            </div> */}
 
             {/* Organization List */}
             <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -578,7 +613,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
           </div>
 
           {/* Notifications Section */}
-          <div className="p-6 border-b border-white/30">
+          <div className="px-6 border-b border-white/30">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -677,7 +712,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
 
             {/* Menu Items */}
             <div className="space-y-2">
-              <button className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium flex items-center gap-2">
+              <button className="w-full text-left px-4 py-1 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium flex items-center gap-2">
                 <UserIcon size={16} />
                 Profile Settings
               </button>
@@ -685,7 +720,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
           </div>
 
           {/* Logout */}
-          <div className="p-6">
+          <div className="px-3 mb-7">
             <button 
               onClick={handleLogout}
               className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium border border-red-200/50 flex items-center justify-center gap-2"

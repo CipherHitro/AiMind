@@ -17,7 +17,9 @@ const corsOptions = {
   origin: process.env.CLIENT_API, 
   credentials: true,              
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['set-cookie']
+
 };
 const app = express();
 const server = http.createServer(app);

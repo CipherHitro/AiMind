@@ -12,16 +12,16 @@ html {
 body {
   height: 100%;
   height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  position: fixed;
-  width: 100%;
 }
 
 #root {
   height: 100%;
   height: -webkit-fill-available;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Fix for iOS address bar */

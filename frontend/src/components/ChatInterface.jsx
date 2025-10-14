@@ -16,7 +16,10 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const [isTemporaryChat, setIsTemporaryChat] = useState(false);
   const [tempChatTitle, setTempChatTitle] = useState('New Chat');
   const [userCredits, setUserCredits] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState('');
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,7 +27,43 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping, streamingMessage]);
+
+  // Auto-resize textarea as user types
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 128);
+      textareaRef.current.style.height = newHeight + 'px';
+      
+      // Show scrollbar only when content exceeds max height
+      if (textareaRef.current.scrollHeight > 128) {
+        textareaRef.current.style.overflowY = 'auto';
+      } else {
+        textareaRef.current.style.overflowY = 'hidden';
+      }
+    }
+  }, [inputValue]);
+
+  // Streaming effect for AI response
+  const streamText = (text, callback) => {
+    setStreamingMessage('');
+    const words = text.split(' ');
+    let currentIndex = 0;
+
+    const intervalId = setInterval(() => {
+      if (currentIndex < words.length) {
+        setStreamingMessage(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
+        currentIndex++;
+      } else {
+        clearInterval(intervalId);
+        setStreamingMessage('');
+        if (callback) callback();
+      }
+    }, 50); // Adjust speed here (lower = faster)
+
+    return () => clearInterval(intervalId);
+  };
 
   // Fetch chats from server
   const fetchChats = async () => {
@@ -95,6 +134,8 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const loadChat = async (chatId) => {
     try {
       setLoading(true);
+      setIsTyping(false);
+      setStreamingMessage('');
       const response = await fetch(`${BASE_URL}/chat/${chatId}`, {
         method: 'GET',
         credentials: 'include',
@@ -146,6 +187,17 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     const messageText = inputValue;
     setInputValue('');
 
+    // Instantly add user message to UI
+    const userMessage = {
+      role: 'user',
+      content: messageText,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    // Show typing indicator
+    setIsTyping(true);
+
     try {
       let chatId = activeChatId;
       console.log(BASE_URL)
@@ -166,6 +218,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
           const error = await createResponse.json();
           alert(error.message || 'Failed to create chat');
           setInputValue(messageText);
+          // Remove the user message we added
+          setMessages(prev => prev.filter(msg => msg !== userMessage));
+          setIsTyping(false);
           return;
         }
 
@@ -208,13 +263,30 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
             )
           );
         }
+
+        // Get the AI response from the data
+        const aiResponse = data.aiMessage?.content || data.response || data.message;
         
-        // Reload the entire chat to get updated messages from backend
-        // Backend removes system messages automatically
-        loadChat(chatId);
-        fetchChats(); // Refresh chat list to show the new chat with updated title
+        // Stop typing indicator and stream the AI response
+        setIsTyping(false);
+        
+        if (aiResponse) {
+          streamText(aiResponse, () => {
+            // After streaming is complete, reload chat to sync with backend
+            loadChat(chatId);
+            fetchChats();
+          });
+        } else {
+          // Fallback: reload immediately if no response text
+          loadChat(chatId);
+          fetchChats();
+        }
       } else {
         const error = await response.json();
+        
+        // Remove the user message we added
+        setMessages(prev => prev.filter(msg => msg !== userMessage));
+        setIsTyping(false);
         
         // Handle insufficient credits error
         if (response.status === 403 && error.credits !== undefined) {
@@ -228,6 +300,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message');
+      // Remove the user message we added
+      setMessages(prev => prev.filter(msg => msg !== userMessage));
+      setIsTyping(false);
       setInputValue(messageText);
     }
   };
@@ -334,6 +409,17 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
       return;
     }
 
+    // Instantly add user message to UI
+    const userMessage = {
+      role: 'user',
+      content: prompt,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    // Show typing indicator
+    setIsTyping(true);
+
     try {
       let chatId = activeChatId;
       
@@ -353,6 +439,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         if (!createResponse.ok) {
           const error = await createResponse.json();
           alert(error.message || 'Failed to create chat');
+          // Remove the user message we added
+          setMessages(prev => prev.filter(msg => msg !== userMessage));
+          setIsTyping(false);
           return;
         }
 
@@ -395,13 +484,30 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
             )
           );
         }
+
+        // Get the AI response from the data
+        const aiResponse = data.aiMessage?.content || data.response || data.message;
         
-        // Reload the entire chat to get updated messages from backend
-        // Backend removes system messages automatically
-        loadChat(chatId);
-        fetchChats(); // Refresh chat list to show the new chat with updated title
+        // Stop typing indicator and stream the AI response
+        setIsTyping(false);
+        
+        if (aiResponse) {
+          streamText(aiResponse, () => {
+            // After streaming is complete, reload chat to sync with backend
+            loadChat(chatId);
+            fetchChats();
+          });
+        } else {
+          // Fallback: reload immediately if no response text
+          loadChat(chatId);
+          fetchChats();
+        }
       } else {
         const error = await response.json();
+        
+        // Remove the user message we added
+        setMessages(prev => prev.filter(msg => msg !== userMessage));
+        setIsTyping(false);
         
         // Handle insufficient credits error
         if (response.status === 403 && error.credits !== undefined) {
@@ -413,6 +519,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message');
+      // Remove the user message we added
+      setMessages(prev => prev.filter(msg => msg !== userMessage));
+      setIsTyping(false);
     }
   };
 
@@ -465,7 +574,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
           
           <button
             onClick={startNewChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
+            className="cursor-pointer w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-xl"
           >
             <Plus size={18} />
             New Chat
@@ -507,7 +616,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                       e.stopPropagation();
                       setShowChatMenu(showChatMenu === chat._id ? null : chat._id);
                     }}
-                    className="p-1 hover:bg-white/60 rounded transition-colors"
+                    className="cursor-pointer p-1 hover:bg-white/60 rounded transition-colors"
                   >
                     <MoreHorizontal size={16} className="text-gray-600" />
                   </button>
@@ -520,7 +629,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                           e.stopPropagation();
                           startRenaming(chat._id, chat.title);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        className="cursor-pointer w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                       >
                         <Edit2 size={14} />
                         Rename
@@ -531,7 +640,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                           deleteChat(chat._id);
                           setShowChatMenu(null);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        className="cursor-pointer w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                       >
                         <Trash2 size={14} />
                         Delete
@@ -620,13 +729,40 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                   </div>
                 );
               })}
+              
+              {/* Typing Indicator */}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] sm:max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl bg-white/60 text-gray-800 border border-white/50 rounded-bl-none shadow-md backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      </div>
+                      <span className="text-sm text-gray-600">AI is thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Streaming Message */}
+              {streamingMessage && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] sm:max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl bg-white/60 text-gray-800 border border-white/50 rounded-bl-none shadow-md backdrop-blur-md break-words">
+                    <MessageContent content={streamingMessage} isUser={false} />
+                    <span className="inline-block w-1 h-4 bg-gray-800 animate-pulse ml-0.5"></span>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="px-4 py-3 border-t border-white/30 bg-white/30 backdrop-blur-md">
+        <div className="sticky bottom-0 px-4 py-3 border-t border-white/30 bg-white/30 backdrop-blur-md">
           <div className="max-w-3xl mx-auto">
             {/* Low Credits Warning */}
             {userCredits < 2 && (
@@ -637,20 +773,22 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
               </div>
             )}
             
-            <div className="flex gap-3">
-              <input
-                type="text"
+            <div className="flex gap-3 items-end">
+              <textarea
+                ref={textareaRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyPress}
                 placeholder={userCredits < 2 ? "Insufficient credits..." : "Type your message here..."}
                 disabled={userCredits < 2}
-                className="flex-1 px-4 py-3 rounded-full bg-white/60 border border-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-md placeholder-gray-500 text-gray-800 shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                rows={1}
+                className="flex-1 px-4 py-3 rounded-2xl bg-white/60 border border-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-md placeholder-gray-500 text-gray-800 shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed resize-none max-h-32"
+                style={{ minHeight: '48px', overflowY: 'hidden' }}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={userCredits < 2}
-                className="px-4 py-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-500 disabled:hover:to-indigo-600"
+                className="cursor-pointer px-4 py-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-500 disabled:hover:to-indigo-600"
               >
                 <Send size={20} />
                 <span className="hidden sm:inline">Send</span>

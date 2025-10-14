@@ -138,6 +138,7 @@ async function handleLogin(req, res) {
         maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 1 * 24 * 60 * 60 * 1000,
         secure: process.env.NODE_ENV === "production", // HTTPS only in production
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Cross-site cookies
+        path : '/',
       });
       return res.status(200).json({ message: "Logged in!" });
     }
@@ -250,7 +251,8 @@ async function handleOAuthLogin(req, res) {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
         secure: process.env.NODE_ENV === "production", // HTTPS only in production
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Cross-site cookies
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Cross-site cookies,
+        path: '/',
       });
       return res.status(200).json({
         message: "Logged in!",
@@ -338,6 +340,23 @@ async function getUserCredits(req, res) {
   }
 }
 
+async function handleLogout(req, res) {
+  try {
+    // Clear the httpOnly cookie
+    res.clearCookie('uid', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: '/',
+    });
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({ message: "Error during logout" });
+  }
+}
+
 module.exports = {
   handleLogin,
   handleSignup,
@@ -345,4 +364,5 @@ module.exports = {
   handleOAuthLogin,
   getUserProfile,
   getUserCredits,
+  handleLogout,
 };

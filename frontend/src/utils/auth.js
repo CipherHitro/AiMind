@@ -1,11 +1,23 @@
 import Cookies from 'js-cookie';
 
+const BASE_URL = import.meta.env.VITE_BASE_API_URL;
+
 /**
- * Check if user is authenticated by checking for JWT token in cookies
+ * Check if user is authenticated by making API request
+ * Since cookies are httpOnly, we can't read them directly
  */
-export const isAuthenticated = () => {
-  const token = Cookies.get('uid');
-  return !!token; // Returns true if token exists, false otherwise
+export const isAuthenticated = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/user/profile`, {
+      method: 'GET',
+      credentials: 'include', // Send httpOnly cookies automatically
+    });
+    
+    return response.ok; // Returns true if authenticated
+  } catch (error) {
+    console.error('Auth check error:', error);
+    return false;
+  }
 };
 
 /**

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
 import Cookies from 'js-cookie'
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const { loginWithRedirect, isAuthenticated, user, isLoading } = useAuth0();
 
@@ -18,6 +19,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [oauthProcessed, setOauthProcessed] = useState(false);
+
+  // Check if this is an OAuth callback
+  const isOAuthCallback = location.search.includes('code=') && location.search.includes('state=');
 
   // Handle Auth0 authentication callback
   useEffect(() => {
@@ -131,6 +135,7 @@ export default function Login() {
         navigate('/chat');
       }
       else{
+        console.log('navigating to chat after login')
         navigate('/chat'); 
       }
     }
@@ -141,6 +146,7 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     // Trigger Auth0 Google login with redirect
+    console.log("in handle google login")
     loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
@@ -154,13 +160,14 @@ export default function Login() {
   };
 
   // Show loading state while OAuth is being processed
-  if (isLoading || (isAuthenticated && user && !oauthProcessed)) {
+  if (isOAuthCallback || isLoading || (isAuthenticated && user && !oauthProcessed)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
         <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 p-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Processing authentication...</p>
+            <p className="text-gray-600 font-medium">Completing sign in...</p>
+            <p className="text-gray-500 text-sm mt-2">Please wait</p>
           </div>
         </div>
       </div>
