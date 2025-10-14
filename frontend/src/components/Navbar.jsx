@@ -24,7 +24,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
   const profileRef = useRef(null);
   const orgDropdownRef = useRef(null);
   const notificationsRef = useRef(null);
-  
+
   // Socket.IO integration
   const { connected, notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useSocket();
 
@@ -44,7 +44,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
 
     // Add event listener
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     // Cleanup
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -76,33 +76,36 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
 
   // Handle logout
   const handleLogout = async () => {
-    try {
-      // Call backend to clear httpOnly cookie
-      await fetch(`${BASE_URL}/user/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-    
-    // If user is authenticated with Auth0, logout from Auth0
-    if (isAuthenticated) {
-      logout({
-        logoutParams: {
-          returnTo: `${window.location.origin}/login`
-        }
-      });
-    } else {
-      // Regular logout - just navigate to login
-      navigate('/login');
+    if (confirm("Are you sure want to logout?")) {
+
+      try {
+        // Call backend to clear httpOnly cookie
+        await fetch(`${BASE_URL}/user/logout`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+
+      // If user is authenticated with Auth0, logout from Auth0
+      if (isAuthenticated) {
+        logout({
+          logoutParams: {
+            returnTo: `${window.location.origin}/login`
+          }
+        });
+      } else {
+        // Regular logout - just navigate to login
+        navigate('/login');
+      }
     }
   };
 
   // Get user initials for avatar
   const getUserInitials = () => {
     if (!userProfile) return 'U';
-    
+
     if (userProfile.fullName) {
       const names = userProfile.fullName.split(' ');
       if (names.length >= 2) {
@@ -110,7 +113,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
       }
       return userProfile.fullName.substring(0, 2).toUpperCase();
     }
-    
+
     return userProfile.username.substring(0, 2).toUpperCase();
   };
 
@@ -134,12 +137,12 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
           method: 'GET',
           credentials: 'include',
         });
-        
+
         if (profileResponse.ok) {
           const data = await profileResponse.json();
           setUserProfile(data);
           setIsOrgDropdownOpen(false);
-          
+
           // Trigger custom event to notify other components
           window.dispatchEvent(new Event('organizationChanged'));
         }
@@ -167,7 +170,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
         method: 'GET',
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setUserProfile(data.user);
@@ -187,7 +190,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Hamburger Menu Button - Space always reserved */}
               <div className="w-8 sm:w-10">
-                {!sidebarOpen && (
+                {!sidebarOpen ? (
                   <button
                     onClick={() => setSidebarOpen(true)}
                     className="p-1.5 sm:p-2 hover:bg-purple-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95"
@@ -195,9 +198,14 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                     <Menu size={20} className="sm:hidden text-gray-700 hover:text-purple-600 transition-colors duration-300" />
                     <Menu size={24} className="hidden sm:block text-gray-700 hover:text-purple-600 transition-colors duration-300" />
                   </button>
-                )}
+                ) : <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1.5 hover:bg-red-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95 group"
+                >
+                  <X size={18} className="text-gray-600 group-hover:text-red-600 transition-colors duration-300" />
+                </button>}
               </div>
-              
+
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-base sm:text-lg">A</span>
               </div>
@@ -250,19 +258,17 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                                   setIsOrgDropdownOpen(false);
                                 }
                               }}
-                              className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                                org.isActive
-                                  ? 'bg-indigo-100 border border-indigo-300'
-                                  : 'hover:bg-purple-50'
-                              }`}
+                              className={`cursor-pointer w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${org.isActive
+                                ? 'bg-indigo-100 border border-indigo-300'
+                                : 'hover:bg-purple-50'
+                                }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                    org.isActive 
-                                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600' 
-                                      : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                                  }`}>
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${org.isActive
+                                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                                    : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                    }`}>
                                     <Building2 size={18} className="text-white" />
                                   </div>
                                   <div className="flex flex-col">
@@ -275,11 +281,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                    org.role === 'admin' 
-                                      ? 'bg-purple-100 text-purple-700' 
-                                      : 'bg-gray-100 text-gray-600'
-                                  }`}>
+                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${org.role === 'admin'
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                    }`}>
                                     {org.role}
                                   </span>
                                   {org.isDefault && (
@@ -295,10 +300,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                           No organizations found
                         </div>
                       )}
-                      
+
                       {/* Divider */}
                       <div className="my-2 border-t border-white/30"></div>
-                      
+
                       {/* Create Organization Button */}
                       <button
                         onClick={() => {
@@ -359,15 +364,14 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                         notifications.map((notification) => (
                           <div
                             key={notification._id}
-                            className={`p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${
-                              !notification.isRead ? 'bg-blue-50/30' : ''
-                            }`}
+                            className={`p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${!notification.isRead ? 'bg-blue-50/30' : ''
+                              }`}
                           >
                             <div className="flex items-start gap-2">
                               {!notification.isRead && (
                                 <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
                               )}
-                              <div 
+                              <div
                                 className="flex-1 min-w-0 cursor-pointer"
                                 onClick={() => !notification.isRead && markAsRead(notification._id)}
                               >
@@ -412,8 +416,8 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                   className="cursor-pointer flex items-center gap-3 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg hover:from-purple-100 hover:to-indigo-100 transition-all duration-300 group"
                 >
                   {userProfile?.picture ? (
-                    <img 
-                      src={userProfile.picture} 
+                    <img
+                      src={userProfile.picture}
                       alt={getDisplayName()}
                       className="w-8 h-8 rounded-full shadow-md object-cover"
                     />
@@ -445,7 +449,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                         Profile Settings
                       </button>
                       <div className="my-2 border-t border-white/30"></div>
-                      <button 
+                      <button
                         onClick={handleLogout}
                         className="cursor-pointer w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-2"
                       >
@@ -464,8 +468,8 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
               className="md:hidden flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/50 hover:shadow-lg transition-all duration-300"
             >
               {userProfile?.picture ? (
-                <img 
-                  src={userProfile.picture} 
+                <img
+                  src={userProfile.picture}
                   alt={getDisplayName()}
                   className="w-8 h-8 rounded-full shadow-md object-cover"
                 />
@@ -489,9 +493,8 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
 
       {/* Mobile Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-screen w-80 bg-white/95 backdrop-blur-md border-l border-white/30 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out md:hidden ${
-          isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed top-0 right-0 h-screen w-80 bg-white/95 backdrop-blur-md border-l border-white/30 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/30">
@@ -532,7 +535,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                 </p>
               </div>
             </div>
-            
+
             {/* Current Organization Display */}
             {/* <div className="mb-3 px-4 py-3 rounded-lg bg-indigo-50 border border-indigo-200/50">
               <p className="text-xs text-gray-600 font-medium mb-1">Active Organization</p>
@@ -553,19 +556,17 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                         setIsMobileSidebarOpen(false);
                       }
                     }}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                      org.isActive
-                        ? 'bg-indigo-100 border border-indigo-300'
-                        : 'hover:bg-purple-50 border border-transparent'
-                    }`}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${org.isActive
+                      ? 'bg-indigo-100 border border-indigo-300'
+                      : 'hover:bg-purple-50 border border-transparent'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          org.isActive 
-                            ? 'bg-gradient-to-br from-indigo-500 to-purple-600' 
-                            : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                        }`}>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${org.isActive
+                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                          : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                          }`}>
                           <Building2 size={18} className="text-white" />
                         </div>
                         <div className="flex flex-col">
@@ -578,11 +579,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          org.role === 'admin' 
-                            ? 'bg-purple-100 text-purple-700' 
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${org.role === 'admin'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-gray-100 text-gray-600'
+                          }`}>
                           {org.role}
                         </span>
                         {org.isDefault && (
@@ -643,15 +643,14 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
                 notifications.map((notification) => (
                   <div
                     key={notification._id}
-                    className={`p-3 rounded-lg border transition-colors group ${
-                      !notification.isRead ? 'bg-blue-50/50 border-blue-200' : 'bg-gray-50 border-gray-200'
-                    }`}
+                    className={`p-3 rounded-lg border transition-colors group ${!notification.isRead ? 'bg-blue-50/50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                      }`}
                   >
                     <div className="flex items-start gap-2">
                       {!notification.isRead && (
                         <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
                       )}
-                      <div 
+                      <div
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => !notification.isRead && markAsRead(notification._id)}
                       >
@@ -692,8 +691,8 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
             <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 p-4 rounded-xl border border-purple-200/30 mb-4">
               <div className="flex items-center gap-3 mb-3">
                 {userProfile?.picture ? (
-                  <img 
-                    src={userProfile.picture} 
+                  <img
+                    src={userProfile.picture}
                     alt={getDisplayName()}
                     className="w-12 h-12 rounded-full shadow-md object-cover"
                   />
@@ -721,7 +720,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, userCredits = 0 })
 
           {/* Logout */}
           <div className="px-3 mb-7">
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium border border-red-200/50 flex items-center justify-center gap-2"
             >

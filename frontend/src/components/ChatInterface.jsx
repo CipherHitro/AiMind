@@ -564,12 +564,12 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         <div className="p-4 border-b border-white/30">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-700">Chat History</h2>
-            <button
+            {/* <button
               onClick={() => setSidebarOpen(false)}
               className="p-1.5 hover:bg-red-100 rounded-lg transition-all duration-300 cursor-pointer hover:scale-110 active:scale-95 group"
             >
               <X size={18} className="text-gray-600 group-hover:text-red-600 transition-colors duration-300" />
-            </button>
+            </button> */}
           </div>
           
           <button
