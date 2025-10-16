@@ -2,11 +2,13 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const createTransporter = () => {
+
   return nodemailer.createTransport({
-    service: "gmail",
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_APP_PASSWORD,
+      user: process.env.BREVO_EMAIL_USER,
+      pass: process.env.BREVO_APP_PASSWORD,
     },
   });
 };
@@ -135,18 +137,18 @@ const sendInvitationEmail = async (recipientEmail, orgId, role, orgName) => {
                 </html>
             `,
       text: `
-You're Invited to Join ${orgName}!
+        You're Invited to Join ${orgName}!
 
-You've been invited to join ${orgName} as a ${role}.
+        You've been invited to join ${orgName} as a ${role}.
 
-Click the link below to accept your invitation:
-${inviteLink}
+        Click the link below to accept your invitation:
+        ${inviteLink}
 
-By accepting this invitation, you'll gain access to collaborate with your team and unlock powerful AI features.
+        By accepting this invitation, you'll gain access to collaborate with your team and unlock powerful AI features.
 
-If you didn't expect this invitation, you can safely ignore this email.
+        If you didn't expect this invitation, you can safely ignore this email.
 
-This is an automated message from AiMind.
+        This is an automated message from AiMind.
             `,
     };
     const info = await transporter.sendMail(mailOptions);
