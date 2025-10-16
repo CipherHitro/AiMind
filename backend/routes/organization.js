@@ -8,7 +8,8 @@ const {
   updateMemberRole,
   removeMember,
   switchOrganization,
-  renameOrganization
+  renameOrganization,
+  joinOrganization
 } = require('../controller/organization');
 const { authenticateUser } = require('../middlewares/auth');
 
@@ -39,4 +40,5 @@ router.patch('/:orgId/members/:memberId/role', updateMemberRole);
 // Remove member from organization
 router.delete('/:orgId/members/:memberId', removeMember);
 
+router.post('/:orgId/joinOrganization', joinOrganization)
 module.exports = router;

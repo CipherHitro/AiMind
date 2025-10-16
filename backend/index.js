@@ -55,7 +55,7 @@ connectMongoDB(process.env.MONGO_URI)
 
 
 app.use('/api/user', userRoute);
-app.use('/api/organization', organizationRoute);
+app.use('/api/organization', authenticateUser, organizationRoute);
 app.use('/api/chat', chatRoute);
 app.use('/api/notification', authenticateUser,  notificationRoute);
 

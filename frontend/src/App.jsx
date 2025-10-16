@@ -5,47 +5,53 @@ import Signup from './pages/Signup'
 import Chat from './pages/Chat'
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute'
 import { isAuthenticated } from './utils/auth'
+import JoinOrganization from './components/JoinOrganization'
 
 function App() {
   return (
     <Router>
       <Routes>
         {/* Public routes - redirect to /chat if already logged in */}
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
             <PublicRoute>
               <Login />
             </PublicRoute>
-          } 
+          }
         />
-        <Route 
-          path="/signup" 
+        <Route
+          path="/signup"
           element={
             <PublicRoute>
               <Signup />
             </PublicRoute>
-          } 
+          }
         />
-        
+
         {/* Protected route - requires authentication */}
-        <Route 
-          path="/chat" 
+        <Route
+          path="/chat"
           element={
             <ProtectedRoute>
               <Chat />
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
+        <Route
+          path="/join-organization"
+          element={<JoinOrganization />}
+        />
+
         {/* Root route - redirect based on authentication status */}
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
-            isAuthenticated() 
-              ? <Navigate to="/chat" replace /> 
+            isAuthenticated()
+              ? <Navigate to="/chat" replace />
               : <Navigate to="/login" replace />
-          } 
+          }
         />
       </Routes>
     </Router>

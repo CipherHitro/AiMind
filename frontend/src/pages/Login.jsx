@@ -15,7 +15,7 @@ export default function Login() {
     password: '',
     rememberMe: false
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [oauthProcessed, setOauthProcessed] = useState(false);
@@ -28,7 +28,7 @@ export default function Login() {
     const handleOAuthLogin = async () => {
       if (isAuthenticated && user && !oauthProcessed) {
         setOauthProcessed(true); // Prevent multiple calls
-        
+
         try {
           // Send OAuth user data to backend
           const response = await fetch(`${BASE_URL}/user/oauth-login`, {
@@ -46,13 +46,27 @@ export default function Login() {
           });
 
           const result = await response.json();
-          
+
           if (response.ok) {
             // Set cookie if in development mode
             console.log("OAuth authentication successful");
             if (import.meta.env.VITE_MODE === 'development' && result.token) {
               console.log("Setting OAuth cookie");
               Cookies.set('uid', result.token, { expires: 7, path: '/', sameSite: 'Lax' });
+            }
+            const pendingOrg = localStorage.getItem("pendingOrgJoin");
+
+            if (pendingOrg) {
+              // Auto-join organization after login
+              const response = await fetch(`${import.meta.env.VITE_BASE_API_URL}/organization/${pendingOrg}/joinOrganization`, {
+                method: "POST",
+                credentials: "include",
+              });
+              const result = await response.json()
+              console.log("join Response : ", response)
+              console.log("join result", result);
+              localStorage.removeItem("pendingOrgJoin");
+              alert(result.message || "Continue to chat with AI");
             }
             navigate('/chat');
           } else {
@@ -110,12 +124,12 @@ export default function Login() {
     console.log(import.meta.env.VITE_MODE)
     // Handle login logic here
     const response = await fetch(`${BASE_URL}/user/login`, {
-      method : "POST",
+      method: "POST",
       headers: {
-        "Content-Type" : "application/json",
+        "Content-Type": "application/json",
       },
       credentials: 'include',
-      body : JSON.stringify(formData)
+      body: JSON.stringify(formData)
     })
     console.log("response : ", response);
     const result = await response.json();
@@ -123,20 +137,48 @@ export default function Login() {
     console.log('Login submitted:', formData);
     if (response.ok) {
       if (import.meta.env.VITE_MODE == 'development') {
-        if(result.rememberMe){
+        if (result.rememberMe) {
           console.log("in remember me ")
-          Cookies.set('uid', result.token,  { expires: 7 , path: '/', sameSite: 'Lax' })
+          Cookies.set('uid', result.token, { expires: 7, path: '/', sameSite: 'Lax' })
         }
-        else{
+        else {
           console.log("out remember me")
           console.log(result.token)
-          Cookies.set('uid', result.token,  { expires: 1 , path: '/', sameSite: 'Lax' })
+          Cookies.set('uid', result.token, { expires: 1, path: '/', sameSite: 'Lax' })
+        }
+        const pendingOrg = localStorage.getItem("pendingOrgJoin");
+
+        if (pendingOrg) {
+          // Auto-join organization after login
+          const response = await fetch(`${import.meta.env.VITE_BASE_API_URL}/organization/${pendingOrg}/joinOrganization`, {
+            method: "POST",
+            credentials: "include",
+          });
+          const result = await response.json()
+          console.log("join Response : ", response)
+          console.log("join result", result);
+          localStorage.removeItem("pendingOrgJoin");
+          alert(result.message || "Continue to chat with AI");
         }
         navigate('/chat');
       }
-      else{
+      else {
         console.log('navigating to chat after login')
-        navigate('/chat'); 
+        const pendingOrg = localStorage.getItem("pendingOrgJoin");
+
+        if (pendingOrg) {
+          // Auto-join organization after login
+          const response = await fetch(`${import.meta.env.VITE_BASE_API_URL}/organization/${pendingOrg}/joinOrganization`, {
+            method: "POST",
+            credentials: "include",
+          });
+          const result = await response.json()
+          console.log("join Response : ", response)
+          console.log("join result", result);
+          localStorage.removeItem("pendingOrgJoin");
+          alert(result.message || "Continue to chat with AI");
+        }
+        navigate('/chat');
       }
     }
     else {
@@ -202,9 +244,8 @@ export default function Login() {
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-2.5 md:py-3 rounded-lg bg-white/60 border ${
-                    errors.username ? 'border-red-300' : 'border-white/50'
-                  } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
+                  className={`w-full pl-10 pr-4 py-2.5 md:py-3 rounded-lg bg-white/60 border ${errors.username ? 'border-red-300' : 'border-white/50'
+                    } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
                   placeholder="Enter username or email"
                 />
               </div>
@@ -227,9 +268,8 @@ export default function Login() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-12 py-2.5 md:py-3 rounded-lg bg-white/60 border ${
-                    errors.password ? 'border-red-300' : 'border-white/50'
-                  } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
+                  className={`w-full pl-10 pr-12 py-2.5 md:py-3 rounded-lg bg-white/60 border ${errors.password ? 'border-red-300' : 'border-white/50'
+                    } focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300`}
                   placeholder="Enter your password"
                 />
                 <button

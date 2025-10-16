@@ -11,7 +11,7 @@ const CREDITS_PER_MESSAGE = 2;
 async function getUserChats(req, res) {
   try {
     const user = req.user;
-
+    console.log('in get user')
     // Get user's active organization
     if (!user.activeOrganization) {
       return res.status(400).json({ message: 'No active organization set' });
@@ -29,12 +29,13 @@ async function getUserChats(req, res) {
     // Get all chats for this organization and user
     const chats = await Chat.find({
       organizationId: user.activeOrganization,
-      userId: user._id,
+      // userId: user._id,
       isArchived: false
     })
       .sort({ updatedAt: -1 })
       .select('title messages createdAt updatedAt');
-
+      console.log("user id " , user._id)
+    console.log("chats ",chats)
     // Format response with last message preview
     const formattedChats = chats.map(chat => ({
       _id: chat._id,
