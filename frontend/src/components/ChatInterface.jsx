@@ -1,16 +1,16 @@
   // Restore startNewChat function in correct place
-  const startNewChat = async () => {
-    setIsTemporaryChat(true);
-    setActiveChatId('temp-chat');
-    setTempChatTitle('New Chat');
-    setMessages([
-      {
-        role: 'system',
-        content: 'Welcome to AiMind\n\nStart a conversation with your AI assistant. Ask me anything, and I\'ll help you with information, creative tasks, coding, and more.',
-        timestamp: new Date()
-      }
-    ]);
-  };
+  // const startNewChat = async () => {
+  //   setIsTemporaryChat(true);
+  //   setActiveChatId('temp-chat');
+  //   setTempChatTitle('New Chat');
+  //   setMessages([
+  //     {
+  //       role: 'system',
+  //       content: 'Welcome to AiMind\n\nStart a conversation with your AI assistant. Ask me anything, and I\'ll help you with information, creative tasks, coding, and more.',
+  //       timestamp: new Date()
+  //     }
+  //   ]);
+  // };
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Menu, X, MessageSquare, Trash2, Edit2, MoreHorizontal, Lock } from 'lucide-react';
 import MessageContent from './MessageContent';
@@ -38,17 +38,31 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const [currentChatLocked, setCurrentChatLocked] = useState(false);
   const [currentChatLockedBy, setCurrentChatLockedBy] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false); // Track if user is manually scrolling
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const lockHeartbeatRef = useRef(null);
+  const chatContainerRef = useRef(null); // Reference to chat container
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Check if user is near bottom of chat
+  const isNearBottom = () => {
+    if (!chatContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    return distanceFromBottom < 100; // Within 100px of bottom
+  };
+
+  // Only auto-scroll if user is near bottom (not manually scrolling up)
   useEffect(() => {
-    scrollToBottom();
+    if (isNearBottom()) {
+      scrollToBottom();
+    }
   }, [messages, isTyping, streamingMessage]);
 
   // Auto-resize textarea as user types
@@ -749,7 +763,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         )} */}
         
         {/* Chat Messages Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 py-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
 import { formatMessageText, processTextBlock } from '../utils/formatMessage';
 
 /**
@@ -39,6 +40,53 @@ const InlineElements = ({ elements }) => {
 };
 
 /**
+ * Code block component with copy button
+ */
+const CodeBlock = ({ code, language }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-gray-300 bg-gray-50">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-200 border-b border-gray-300">
+        <span className="text-xs text-gray-600 font-mono">
+          {language || 'code'}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-300 rounded transition-colors duration-200"
+          title="Copy code"
+        >
+          {copied ? (
+            <>
+              <Check size={14} className="text-green-600" />
+              <span className="text-green-600">Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={14} />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="p-3 overflow-x-auto">
+        <code className="text-xs font-mono text-gray-800">{code}</code>
+      </pre>
+    </div>
+  );
+};
+
+/**
  * Main component to render formatted message content
  */
 export default function MessageContent({ content, isUser }) {
@@ -54,18 +102,13 @@ export default function MessageContent({ content, isUser }) {
     <div className="text-sm leading-relaxed space-y-2">
       {parts.map((part, partIdx) => {
         if (part.type === 'code') {
-          // Code block
+          // Code block with copy button
           return (
-            <div key={partIdx} className="my-3 rounded-lg overflow-hidden border border-gray-300">
-              {part.language && (
-                <div className="px-3 py-1 bg-gray-200 text-xs text-gray-600 font-mono">
-                  {part.language}
-                </div>
-              )}
-              <pre className="p-3 bg-gray-50 overflow-x-auto">
-                <code className="text-xs font-mono text-gray-800">{part.content}</code>
-              </pre>
-            </div>
+            <CodeBlock 
+              key={partIdx} 
+              code={part.content} 
+              language={part.language} 
+            />
           );
         } else {
           // Text content - process lines
