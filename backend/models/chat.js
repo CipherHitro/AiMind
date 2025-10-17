@@ -36,6 +36,24 @@ const chatSchema = new mongoose.Schema(
     isArchived: {
       type: Boolean,
       default: false
+    },
+    // Chat locking fields
+    isLocked: {
+      type: Boolean,
+      default: false
+    },
+    lockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'user',
+      default: null
+    },
+    lockedAt: {
+      type: Date,
+      default: null
+    },
+    lockExpiry: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

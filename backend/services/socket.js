@@ -2,6 +2,8 @@ const { Server } = require('socket.io');
 const cookie = require('cookie');
 const { getUser } = require('./auth');
 const Notification = require('../models/notification');
+const User = require('../models/user');
+const Chat = require('../models/chat');
 
 let io;
 
@@ -38,9 +40,25 @@ function initializeSocket(server) {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     console.log(`User connected: ${socket.userId}`);
     socket.join(`user:${socket.userId}`);
+
+    // Join user to their organization rooms
+    try {
+      const user = await User.findById(socket.userId).populate('organizations.orgId');
+      if (user && user.organizations) {
+        user.organizations.forEach(org => {
+          if (org.orgId && org.orgId._id) {
+            const orgRoom = `org:${org.orgId._id}`;
+            socket.join(orgRoom);
+            console.log(`User ${socket.userId} joined organization room: ${orgRoom}`);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error joining organization rooms:', error);
+    }
 
     // Get notifications
     socket.on('get-notifications', async () => {
@@ -60,8 +78,46 @@ function initializeSocket(server) {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`User disconnected: ${socket.userId}`);
+      
+      // Auto-unlock all chats locked by this user
+      try {
+        const lockedChats = await Chat.find({ 
+          lockedBy: socket.userId,
+          isLocked: true 
+        }).populate('organization');
+
+        if (lockedChats.length > 0) {
+          // Unlock all chats
+          await Chat.updateMany(
+            { lockedBy: socket.userId, isLocked: true },
+            { 
+              $set: { 
+                isLocked: false, 
+                lockedBy: null, 
+                lockedAt: null, 
+                lockExpiry: null 
+              } 
+            }
+          );
+
+          // Notify organization members about unlocked chats
+          lockedChats.forEach(chat => {
+            if (chat.organization) {
+              io.to(`org:${chat.organization}`).emit('chat-unlocked', {
+                chatId: chat._id,
+                reason: 'user-disconnected',
+                userId: socket.userId
+              });
+            }
+          });
+
+          console.log(`Auto-unlocked ${lockedChats.length} chats for disconnected user ${socket.userId}`);
+        }
+      } catch (error) {
+        console.error('Error auto-unlocking chats on disconnect:', error);
+      }
     });
   });
 

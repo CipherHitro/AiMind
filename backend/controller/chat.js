@@ -66,8 +66,8 @@ async function getChat(req, res) {
 
     const chat = await Chat.findOne({
       _id: chatId,
-      userId: user._id
-    });
+      // userId: user._id
+    }).populate('lockedBy', 'username fullName');
 
     if (!chat) {
       return res.status(404).json({ message: 'Chat not found' });
@@ -78,7 +78,39 @@ async function getChat(req, res) {
       return res.status(403).json({ message: 'This chat belongs to a different organization' });
     }
 
-    return res.status(200).json({ chat });
+    // Check if chat is locked by another user
+    let isLockedByOther = false;
+    let lockInfo = null;
+    
+    if (chat.isLocked && chat.lockedBy && chat.lockedBy._id.toString() !== user._id.toString()) {
+      // Check if lock has expired (auto-unlock after 5 minutes of inactivity)
+      const lockExpiryTime = new Date(chat.lockedAt.getTime() + 5 * 60 * 1000);
+      if (new Date() > lockExpiryTime) {
+        // Lock expired, auto-unlock
+        chat.isLocked = false;
+        chat.lockedBy = null;
+        chat.lockedAt = null;
+        chat.lockExpiry = null;
+        await chat.save();
+      } else {
+        // Chat is locked by another user - allow viewing but mark as locked
+        isLockedByOther = true;
+        lockInfo = {
+          username: chat.lockedBy.username,
+          fullName: chat.lockedBy.fullName
+        };
+      }
+    }
+
+    // Always return chat data (users can view locked chats)
+    return res.status(200).json({ 
+      chat,
+      isLocked: chat.isLocked,
+      lockedByMe: chat.lockedBy && chat.lockedBy._id.toString() === user._id.toString(),
+      isLockedByOther,
+      lockedBy: lockInfo
+    });
+
   } catch (error) {
     console.error('Error fetching chat:', error);
     return res.status(500).json({ message: 'Error fetching chat' });
@@ -115,7 +147,7 @@ async function createChat(req, res) {
       title: title || 'New Chat',
       organizationId: user.activeOrganization,
       userId: user._id,
-      messages: [welcomeMessage]
+      messages: [welcomeMessage],
     });
 
     return res.status(201).json({ 
@@ -294,11 +326,153 @@ async function updateChatTitle(req, res) {
   }
 }
 
+// Lock a chat when user opens it
+async function lockChat(req, res) {
+  try {
+    const { chatId } = req.params;
+    const user = req.user;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      organizationId: user.activeOrganization
+    }).populate('lockedBy', 'username fullName');
+
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Check if already locked by another user
+    if (chat.isLocked && chat.lockedBy && chat.lockedBy._id.toString() !== user._id.toString()) {
+      // Check if lock has expired
+      const lockExpiryTime = new Date(chat.lockedAt.getTime() + 5 * 60 * 1000);
+      if (new Date() <= lockExpiryTime) {
+        return res.status(423).json({ 
+          message: `This chat is currently being used by ${chat.lockedBy.username || chat.lockedBy.fullName}`,
+          isLocked: true,
+          lockedBy: {
+            username: chat.lockedBy.username,
+            fullName: chat.lockedBy.fullName
+          }
+        });
+      }
+    }
+
+    // Lock the chat
+    chat.isLocked = true;
+    chat.lockedBy = user._id;
+    chat.lockedAt = new Date();
+    chat.lockExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await chat.save();
+
+    // Emit socket event to notify other users
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`org:${user.activeOrganization}`).emit('chat-locked', {
+        chatId: chat._id,
+        lockedBy: {
+          _id: user._id,
+          username: user.username,
+          fullName: user.fullName
+        }
+      });
+    }
+
+    return res.status(200).json({ 
+      message: 'Chat locked successfully',
+      isLocked: true,
+      lockedBy: user._id
+    });
+  } catch (error) {
+    console.error('Error locking chat:', error);
+    return res.status(500).json({ message: 'Error locking chat' });
+  }
+}
+
+// Unlock a chat when user closes it
+async function unlockChat(req, res) {
+  try {
+    const { chatId } = req.params;
+    const user = req.user;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      organizationId: user.activeOrganization
+    });
+
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    // Only the user who locked it can unlock it (or if lock expired)
+    if (chat.isLocked && chat.lockedBy && chat.lockedBy.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: 'You cannot unlock this chat' });
+    }
+
+    // Unlock the chat
+    chat.isLocked = false;
+    chat.lockedBy = null;
+    chat.lockedAt = null;
+    chat.lockExpiry = null;
+    await chat.save();
+
+    // Emit socket event to notify other users
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`org:${user.activeOrganization}`).emit('chat-unlocked', {
+        chatId: chat._id
+      });
+    }
+
+    return res.status(200).json({ 
+      message: 'Chat unlocked successfully',
+      isLocked: false
+    });
+  } catch (error) {
+    console.error('Error unlocking chat:', error);
+    return res.status(500).json({ message: 'Error unlocking chat' });
+  }
+}
+
+// Keep chat lock alive (heartbeat)
+async function keepChatLockAlive(req, res) {
+  try {
+    const { chatId } = req.params;
+    const user = req.user;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      organizationId: user.activeOrganization,
+      isLocked: true,
+      lockedBy: user._id
+    });
+
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found or not locked by you' });
+    }
+
+    // Extend the lock
+    chat.lockedAt = new Date();
+    chat.lockExpiry = new Date(Date.now() + 5 * 60 * 1000);
+    await chat.save();
+
+    return res.status(200).json({ 
+      message: 'Lock extended',
+      lockExpiry: chat.lockExpiry
+    });
+  } catch (error) {
+    console.error('Error extending lock:', error);
+    return res.status(500).json({ message: 'Error extending lock' });
+  }
+}
+
 module.exports = {
   getUserChats,
   getChat,
   createChat,
   sendMessage,
   deleteChat,
-  updateChatTitle
+  updateChatTitle,
+  lockChat,
+  unlockChat,
+  keepChatLockAlive
 };

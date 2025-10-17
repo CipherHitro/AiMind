@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Plus, Menu, X, MessageSquare, Trash2, Edit2, MoreHorizontal } from 'lucide-react';
+import { Send, Plus, Menu, X, MessageSquare, Trash2, Edit2, MoreHorizontal, Lock } from 'lucide-react';
 import MessageContent from './MessageContent';
+import { io } from 'socket.io-client';
 
 export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUpdate }) {
   const [messages, setMessages] = useState([]);
@@ -18,8 +19,16 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
   const [userCredits, setUserCredits] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
+  
+  // Chat locking states
+  const [chatLockStatus, setChatLockStatus] = useState({}); // {chatId: {isLocked, lockedBy: {username, fullName}}}
+  const [currentChatLocked, setCurrentChatLocked] = useState(false);
+  const [currentChatLockedBy, setCurrentChatLockedBy] = useState(null);
+  const [socket, setSocket] = useState(null);
+  
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const lockHeartbeatRef = useRef(null);
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,6 +74,22 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     return () => clearInterval(intervalId);
   };
 
+  // On mount, restore activeChatId from localStorage and load its messages
+  useEffect(() => {
+    const savedChatId = localStorage.getItem('activeChatId');
+    if (savedChatId) {
+      setActiveChatId(savedChatId);
+      loadChat(savedChatId);
+    }
+  }, []);
+
+  // Whenever activeChatId changes, persist it
+  useEffect(() => {
+    if (activeChatId) {
+      localStorage.setItem('activeChatId', activeChatId);
+    }
+  }, [activeChatId]);
+
   // Fetch chats from server
   const fetchChats = async () => {
     try {
@@ -82,8 +107,11 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         if (data.chats.length === 0) {
           createTemporaryWelcomeChat();
         } else if (!activeChatId && data.chats.length > 0) {
-          // If chats exist and no active chat, load the first one
-          loadChat(data.chats[0]._id);
+          // Only load first chat if no activeChatId in localStorage
+          const savedChatId = localStorage.getItem('activeChatId');
+          if (!savedChatId) {
+            loadChat(data.chats[0]._id);
+          }
         }
       } else {
         console.error('Failed to fetch chats');
@@ -145,6 +173,15 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         const data = await response.json();
         setActiveChatId(chatId);
         setMessages(data.chat.messages);
+        
+        // Update lock status from response
+        if (data.isLockedByOther && data.lockedBy) {
+          setCurrentChatLocked(true);
+          setCurrentChatLockedBy(data.lockedBy);
+        } else {
+          setCurrentChatLocked(false);
+          setCurrentChatLockedBy(null);
+        }
       } else {
         console.error('Failed to load chat');
       }
@@ -176,6 +213,119 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
       window.removeEventListener('organizationChanged', handleOrgChange);
     };
   }, []);
+
+  // Socket.IO initialization for chat locking
+  useEffect(() => {
+    const newSocket = io(BASE_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    });
+
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Chat Socket.IO connected');
+    });
+
+    // Listen for chat-locked events
+    newSocket.on('chat-locked', (data) => {
+      console.log('Chat locked:', data);
+      setChatLockStatus(prev => ({
+        ...prev,
+        [data.chatId]: {
+          isLocked: true,
+          lockedBy: data.lockedBy
+        }
+      }));
+
+      // If the locked chat is currently active, update current lock status
+      if (data.chatId === activeChatId) {
+        setCurrentChatLocked(true);
+        setCurrentChatLockedBy(data.lockedBy);
+      }
+    });
+
+    // Listen for chat-unlocked events
+    newSocket.on('chat-unlocked', (data) => {
+      console.log('Chat unlocked:', data);
+      setChatLockStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[data.chatId];
+        return newStatus;
+      });
+
+      // If the unlocked chat is currently active, update current lock status
+      if (data.chatId === activeChatId) {
+        setCurrentChatLocked(false);
+        setCurrentChatLockedBy(null);
+      }
+    });
+
+    return () => {
+      newSocket.close();
+    };
+  }, [activeChatId]);
+
+  // Lock management when chat is selected
+  useEffect(() => {
+    if (!activeChatId || isTemporaryChat) return;
+
+    // Lock the chat when opening
+    const lockChat = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/chat/${activeChatId}/lock`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Chat locked successfully:', data);
+          setCurrentChatLocked(false); // We own the lock
+          setCurrentChatLockedBy(null);
+
+          // Start heartbeat to keep lock alive
+          lockHeartbeatRef.current = setInterval(async () => {
+            try {
+              await fetch(`${BASE_URL}/chat/${activeChatId}/lock/heartbeat`, {
+                method: 'POST',
+                credentials: 'include',
+              });
+              console.log('Lock heartbeat sent');
+            } catch (error) {
+              console.error('Error sending lock heartbeat:', error);
+            }
+          }, 2 * 60 * 1000); // Every 2 minutes
+        } else if (response.status === 423) {
+          // Chat is locked by another user
+          const data = await response.json();
+          console.log('Chat is locked by another user:', data);
+          setCurrentChatLocked(true);
+          setCurrentChatLockedBy(data.lockedBy);
+        }
+      } catch (error) {
+        console.error('Error locking chat:', error);
+      }
+    };
+
+    lockChat();
+
+    // Cleanup: Unlock chat when component unmounts or chat changes
+    return () => {
+      if (lockHeartbeatRef.current) {
+        clearInterval(lockHeartbeatRef.current);
+        lockHeartbeatRef.current = null;
+      }
+
+      // Only unlock the chat if we own the lock (not locked by another user)
+      if (activeChatId && !isTemporaryChat && !currentChatLocked) {
+        fetch(`${BASE_URL}/chat/${activeChatId}/unlock`, {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(err => console.error('Error unlocking chat:', err));
+      }
+    };
+  }, [activeChatId, isTemporaryChat, currentChatLocked]);
 
   const handleSendMessage = async () => {
     if (inputValue.trim() === '') return;
@@ -274,12 +424,12 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
           streamText(aiResponse, () => {
             // After streaming is complete, reload chat to sync with backend
             loadChat(chatId);
-            fetchChats();
+            // fetchChats();
           });
         } else {
           // Fallback: reload immediately if no response text
           loadChat(chatId);
-          fetchChats();
+          // fetchChats();
         }
       } else {
         const error = await response.json();
@@ -328,8 +478,11 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     ]);
   };
 
+  // When user selects a chat, update activeChatId and persist
   const selectChat = (chatId) => {
     setIsTemporaryChat(false); // Clear temporary chat state
+    setActiveChatId(chatId);
+    localStorage.setItem('activeChatId', chatId);
     loadChat(chatId);
   };
 
@@ -588,7 +741,11 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
               No chats yet. Create a new chat to get started!
             </div>
           ) : (
-            chatHistory.map((chat) => (
+            chatHistory.map((chat) => {
+              const isLocked = chatLockStatus[chat._id]?.isLocked;
+              const lockedBy = chatLockStatus[chat._id]?.lockedBy;
+              
+              return (
               <div
                 key={chat._id}
                 onClick={() => selectChat(chat._id)}
@@ -604,8 +761,17 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
               }`}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <MessageSquare size={16} className="text-purple-500 flex-shrink-0" />
+                {isLocked ? (
+                  <Lock size={16} className="text-amber-500 flex-shrink-0" title={`Locked by ${lockedBy?.fullName || lockedBy?.username}`} />
+                ) : (
+                  <MessageSquare size={16} className="text-purple-500 flex-shrink-0" />
+                )}
                 <h3 className="text-sm font-medium text-gray-800 truncate">{chat.title}</h3>
+                {isLocked && (
+                  <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                    In use
+                  </span>
+                )}
               </div>
               
               {/* Three Dots Menu Button - Shows on hover */}
@@ -650,7 +816,8 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
                 </div>
               )}
             </div>
-            ))
+            );
+            })
           )}
         </div>
 
@@ -666,6 +833,21 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Locked Chat Warning Banner */}
+        {/* {currentChatLocked && currentChatLockedBy && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex items-center gap-3">
+            <Lock size={20} className="text-amber-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900">
+                This chat is currently in use by {currentChatLockedBy.fullName || currentChatLockedBy.username}
+              </p>
+              <p className="text-xs text-amber-700">
+                You can view the chat but cannot send messages until they close it.
+              </p>
+            </div>
+          </div>
+        )} */}
+        
         {/* Chat Messages Area */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {loading ? (
@@ -773,21 +955,36 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
               </div>
             )}
             
+            {/* Locked Chat Warning */}
+            {currentChatLocked && currentChatLockedBy && (
+              <div className="mb-3 px-4 py-2 rounded-lg bg-amber-50 border border-amber-200 text-center">
+                <p className="text-sm font-medium text-amber-700">
+                  Chat is being used by {currentChatLockedBy.fullName || currentChatLockedBy.username}
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-3 items-end">
               <textarea
                 ref={textareaRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={userCredits < 2 ? "Insufficient credits..." : "Type your message here..."}
-                disabled={userCredits < 2}
+                placeholder={
+                  currentChatLocked 
+                    ? "Chat is locked by another user..." 
+                    : userCredits < 2 
+                    ? "Insufficient credits..." 
+                    : "Type your message here..."
+                }
+                disabled={userCredits < 2 || currentChatLocked}
                 rows={1}
                 className="flex-1 px-4 py-3 rounded-2xl bg-white/60 border border-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-md placeholder-gray-500 text-gray-800 shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed resize-none max-h-32"
                 style={{ minHeight: '48px', overflowY: 'hidden' }}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={userCredits < 2}
+                disabled={userCredits < 2 || currentChatLocked}
                 className="cursor-pointer px-4 py-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-500 disabled:hover:to-indigo-600"
               >
                 <Send size={20} />

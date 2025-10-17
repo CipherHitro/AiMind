@@ -6,7 +6,10 @@ const {
   createChat,
   sendMessage,
   deleteChat,
-  updateChatTitle
+  updateChatTitle,
+  lockChat,
+  unlockChat,
+  keepChatLockAlive
 } = require('../controller/chat');
 const { authenticateUser } = require('../middlewares/auth');
 
@@ -27,6 +30,15 @@ router.post('/:chatId/message', sendMessage);
 
 // Update chat title
 router.patch('/:chatId', updateChatTitle);
+
+// Lock chat (when user opens it)
+router.post('/:chatId/lock', lockChat);
+
+// Unlock chat (when user closes it)
+router.post('/:chatId/unlock', unlockChat);
+
+// Keep lock alive (heartbeat)
+router.post('/:chatId/lock/heartbeat', keepChatLockAlive);
 
 // Delete chat (soft delete)
 router.delete('/:chatId', deleteChat);
