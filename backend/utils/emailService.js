@@ -2,10 +2,11 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const createTransporter = () => {
+    console.log(process.env.BREVO_EMAIL_USER , process.env.BREVO_APP_PASSWORD)
 
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port: process.env.SMTP_PORT || 587,
     auth: {
       user: process.env.BREVO_EMAIL_USER,
       pass: process.env.BREVO_APP_PASSWORD,

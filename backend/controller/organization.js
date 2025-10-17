@@ -6,6 +6,9 @@ const {
   sendInvitationEmail,
 } = require("../utils/emailService");
 
+const { testBrevoConnection, sendBrevoInvitationEmail } = require('../utils/brevoEmailService')
+
+
 // Get all organizations for a user
 async function getUserOrganizations(req, res) {
   try {
@@ -234,9 +237,9 @@ async function inviteMember(req, res) {
         .status(400)
         .json({ message: "Invitation already sent to this email" });
     }
-    console.log(testEmailConnection());
+    console.log(testBrevoConnection());
     // console.log(generateToken());
-    await sendInvitationEmail(emailLower, orgId, role, orgName);
+    await sendBrevoInvitationEmail(emailLower, orgId, role, orgName);
 
     return res.status(200).json({
       message: "Invitation sent successfully",
