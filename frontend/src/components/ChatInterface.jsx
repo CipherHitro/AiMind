@@ -1,3 +1,16 @@
+  // Restore startNewChat function in correct place
+  const startNewChat = async () => {
+    setIsTemporaryChat(true);
+    setActiveChatId('temp-chat');
+    setTempChatTitle('New Chat');
+    setMessages([
+      {
+        role: 'system',
+        content: 'Welcome to AiMind\n\nStart a conversation with your AI assistant. Ask me anything, and I\'ll help you with information, creative tasks, coding, and more.',
+        timestamp: new Date()
+      }
+    ]);
+  };
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Menu, X, MessageSquare, Trash2, Edit2, MoreHorizontal, Lock } from 'lucide-react';
 import MessageContent from './MessageContent';
@@ -54,8 +67,8 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     }
   }, [inputValue]);
 
-  // Streaming effect for AI response
-  const streamText = (text, callback) => {
+  // Streaming effect for AI response (adds to messages after completion)
+  const streamText = (text) => {
     setStreamingMessage('');
     const words = text.split(' ');
     let currentIndex = 0;
@@ -66,8 +79,13 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         currentIndex++;
       } else {
         clearInterval(intervalId);
+        // ✅ Add the complete AI message to messages array AFTER streaming completes
+        setMessages(prev => [...prev, { role: 'assistant', content: text, timestamp: new Date() }]);
         setStreamingMessage('');
-        if (callback) callback();
+        // ✅ Focus back on textarea after AI response completes
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
       }
     }, 50); // Adjust speed here (lower = faster)
 
@@ -327,145 +345,8 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     };
   }, [activeChatId, isTemporaryChat, currentChatLocked]);
 
-  const handleSendMessage = async () => {
-    if (inputValue.trim() === '') return;
-    if (!activeChatId) {
-      alert('Please select or create a chat first');
-      return;
-    }
-
-    const messageText = inputValue;
-    setInputValue('');
-
-    // Instantly add user message to UI
-    const userMessage = {
-      role: 'user',
-      content: messageText,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-    // Show typing indicator
-    setIsTyping(true);
-
-    try {
-      let chatId = activeChatId;
-      console.log(BASE_URL)
-      // If this is a temporary chat, create it in database first
-      if (isTemporaryChat) {
-        const createResponse = await fetch(`${BASE_URL}/chat/create`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            title: tempChatTitle,
-          }),
-        });
-
-        if (!createResponse.ok) {
-          const error = await createResponse.json();
-          alert(error.message || 'Failed to create chat');
-          setInputValue(messageText);
-          // Remove the user message we added
-          setMessages(prev => prev.filter(msg => msg !== userMessage));
-          setIsTyping(false);
-          return;
-        }
-
-        const createData = await createResponse.json();
-        chatId = createData.chat._id;
-        setActiveChatId(chatId);
-        setIsTemporaryChat(false);
-      }
-
-      // Now send the message
-      const response = await fetch(`${BASE_URL}/chat/${chatId}/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          message: messageText,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update user credits from response
-        if (data.credits !== undefined) {
-          setUserCredits(data.credits);
-          // Notify parent component about credits update
-          if (onCreditsUpdate) {
-            onCreditsUpdate(data.credits);
-          }
-        }
-        
-        // If the backend auto-generated a title, update it in the chat history
-        if (data.chatTitle) {
-          // Update chat title in the sidebar immediately
-          setChatHistory(prevHistory => 
-            prevHistory.map(chat => 
-              chat._id === chatId ? { ...chat, title: data.chatTitle } : chat
-            )
-          );
-        }
-
-        // Get the AI response from the data
-        const aiResponse = data.aiMessage?.content || data.response || data.message;
-        
-        // Stop typing indicator and stream the AI response
-        setIsTyping(false);
-        
-        if (aiResponse) {
-          streamText(aiResponse, () => {
-            // After streaming is complete, reload chat to sync with backend
-            loadChat(chatId);
-            // fetchChats();
-          });
-        } else {
-          // Fallback: reload immediately if no response text
-          loadChat(chatId);
-          // fetchChats();
-        }
-      } else {
-        const error = await response.json();
-        
-        // Remove the user message we added
-        setMessages(prev => prev.filter(msg => msg !== userMessage));
-        setIsTyping(false);
-        
-        // Handle insufficient credits error
-        if (response.status === 403 && error.credits !== undefined) {
-          alert(`Insufficient credits! You have ${error.credits} credits, but need ${error.requiredCredits} credits to send a message.`);
-        } else {
-          alert(error.message || 'Failed to send message');
-        }
-        
-        setInputValue(messageText); // Restore input value on error
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message');
-      // Remove the user message we added
-      setMessages(prev => prev.filter(msg => msg !== userMessage));
-      setIsTyping(false);
-      setInputValue(messageText);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
+  // Restore startNewChat function
   const startNewChat = async () => {
-    // Create temporary chat with welcome message immediately
     setIsTemporaryChat(true);
     setActiveChatId('temp-chat');
     setTempChatTitle('New Chat');
@@ -476,6 +357,12 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         timestamp: new Date()
       }
     ]);
+    // ✅ Auto-focus the textarea when starting new chat
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 100);
   };
 
   // When user selects a chat, update activeChatId and persist
@@ -556,7 +443,9 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     setShowChatMenu(null);
   };
 
-  const handleSuggestedPrompt = async (prompt) => {
+  // Unified message sending logic
+  const sendMessage = async (messageText) => {
+    if (!messageText || !messageText.trim()) return;
     if (!activeChatId) {
       alert('Please select or create a chat first');
       return;
@@ -565,17 +454,14 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
     // Instantly add user message to UI
     const userMessage = {
       role: 'user',
-      content: prompt,
+      content: messageText,
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
-
-    // Show typing indicator
     setIsTyping(true);
 
     try {
       let chatId = activeChatId;
-      
       // If this is a temporary chat, create it in database first
       if (isTemporaryChat) {
         const createResponse = await fetch(`${BASE_URL}/chat/create`, {
@@ -592,7 +478,7 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         if (!createResponse.ok) {
           const error = await createResponse.json();
           alert(error.message || 'Failed to create chat');
-          // Remove the user message we added
+          // Input already cleared - don't restore on error
           setMessages(prev => prev.filter(msg => msg !== userMessage));
           setIsTyping(false);
           return;
@@ -602,6 +488,18 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         chatId = createData.chat._id;
         setActiveChatId(chatId);
         setIsTemporaryChat(false);
+        
+        // ✅ Immediately add new chat to chatHistory (with temporary title)
+        const newChat = {
+          _id: chatId,
+          title: tempChatTitle,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isLocked: false,
+          memberCount: 1
+        };
+        setChatHistory(prev => [newChat, ...prev]);
+        localStorage.setItem('activeChatId', chatId);
       }
 
       // Now send the message
@@ -612,70 +510,72 @@ export default function ChatInterface({ sidebarOpen, setSidebarOpen, onCreditsUp
         },
         credentials: 'include',
         body: JSON.stringify({
-          message: prompt,
+          message: messageText,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        
         // Update user credits from response
         if (data.credits !== undefined) {
           setUserCredits(data.credits);
-          // Notify parent component about credits update
           if (onCreditsUpdate) {
             onCreditsUpdate(data.credits);
           }
         }
-        
         // If the backend auto-generated a title, update it in the chat history
         if (data.chatTitle) {
-          // Update chat title in the sidebar immediately
           setChatHistory(prevHistory => 
             prevHistory.map(chat => 
               chat._id === chatId ? { ...chat, title: data.chatTitle } : chat
             )
           );
         }
-
         // Get the AI response from the data
         const aiResponse = data.aiMessage?.content || data.response || data.message;
-        
-        // Stop typing indicator and stream the AI response
         setIsTyping(false);
         
+        // ✅ Stream the AI response (it will add to messages after completion)
         if (aiResponse) {
-          streamText(aiResponse, () => {
-            // After streaming is complete, reload chat to sync with backend
-            loadChat(chatId);
-            fetchChats();
-          });
-        } else {
-          // Fallback: reload immediately if no response text
-          loadChat(chatId);
-          fetchChats();
+          streamText(aiResponse);
         }
       } else {
         const error = await response.json();
-        
-        // Remove the user message we added
         setMessages(prev => prev.filter(msg => msg !== userMessage));
         setIsTyping(false);
-        
-        // Handle insufficient credits error
         if (response.status === 403 && error.credits !== undefined) {
           alert(`Insufficient credits! You have ${error.credits} credits, but need ${error.requiredCredits} credits to send a message.`);
         } else {
           alert(error.message || 'Failed to send message');
         }
+        // Input already cleared - don't restore on error
       }
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message');
-      // Remove the user message we added
       setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsTyping(false);
+      // Input already cleared - don't restore on error
     }
+  };
+
+  // Send message from input
+  const handleSendMessage = async () => {
+    if (inputValue.trim() === '') return;
+    const messageToSend = inputValue;
+    setInputValue(''); // ✅ Clear IMMEDIATELY before sending
+    await sendMessage(messageToSend);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleSuggestedPrompt = async (prompt) => {
+    await sendMessage(prompt);
   };
 
   const suggestedPrompts = [
